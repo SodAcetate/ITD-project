@@ -1,0 +1,30 @@
+package main
+
+import (
+	"log"
+	queryhandler "main/app/queryLogic"
+	"os"
+
+	tgbotapi "github.com/Syfaro/telegram-bot-api"
+)
+
+func main() {
+	token := os.Args[1]
+	bot, err := tgbotapi.NewBotAPI(token)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	u := tgbotapi.NewUpdate(0)
+	u.Timeout = 60
+
+	updates, err := bot.GetUpdatesChan(u)
+
+	for update := range updates {
+
+		// Process -- логика обработки запросов
+		queryhandler.Process(bot, &update)
+
+	}
+
+}
