@@ -11,6 +11,7 @@ import (
 func main() {
 	token := os.Args[1]
 	bot, err := tgbotapi.NewBotAPI(token)
+	log.Println("Connected via token " + token)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -23,6 +24,7 @@ func main() {
 	for update := range updates {
 
 		// Process -- логика обработки запросов
+		log.Printf("Update from %d [%s]", update.Message.Chat.ID, update.Message.Chat.UserName)
 		queryhandler.Process(bot, &update)
 
 	}

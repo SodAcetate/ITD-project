@@ -14,12 +14,12 @@ func GetCatalogue() string {
 	return msg
 }
 
-func AddItem(args string) string {
-	msg := "Добавить предмет" + args
+func AddItem() string {
+	msg := "Добавление пока не работает :("
 	return msg
 }
 
-func RemoveItem(args string) string {
-	msg := "Удалить предмет" + args
+func RemoveItem() string {
+	msg := "Удаление пока не работает :("
 	return msg
 }
