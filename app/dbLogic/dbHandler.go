@@ -4,6 +4,12 @@ import (
 	entry "main/shared/entry"
 )
 
+// получает на вход объект entry (EntryItem или EntryUser)
+// делает запрос к БД
+// из БД получает какую-то структурку, преобразует её в entry
+// на выход передаёт объекты entry и error
+// Исключение -- логика работы с состояниями
+
 // сгенерить предмет-заглушку
 func GetPlaceholderItem() entry.EntryItem {
 	var placeholderItem entry.EntryItem
@@ -18,6 +24,7 @@ func GetPlaceholderUser() entry.EntryUser {
 	var placeholderUser entry.EntryUser
 	placeholderUser.ID = 1
 	placeholderUser.Name = "PlaceholderUsername"
+	placeholderUser.Contact = "OneVVTG"
 	return placeholderUser
 }
 
@@ -25,13 +32,15 @@ func GetUserState(ID int64) string {
 	return "start"
 }
 
-func AddItem() (entry.EntryItem, error) {
-	var item entry.EntryItem
+func UpdateUserState(new_state string) error {
+	return nil
+}
+
+func AddItem(item entry.EntryItem) (entry.EntryItem, error) {
 	return item, nil
 }
 
-func EditItem() (entry.EntryItem, error) {
-	var item entry.EntryItem
+func EditItem(item entry.EntryItem) (entry.EntryItem, error) {
 	return item, nil
 }
 

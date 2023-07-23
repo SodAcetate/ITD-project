@@ -25,8 +25,8 @@ func main() {
 
 		// Process -- логика обработки запросов
 		log.Printf("Update from %d [%s]", update.Message.Chat.ID, update.Message.Chat.UserName)
-		queryhandler.Process(bot, &update)
-
+		msg := queryhandler.Process(&update)
+		bot.Send(msg)
 	}
 
 }
