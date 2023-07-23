@@ -44,6 +44,10 @@ func EditItem(item entry.EntryItem) (entry.EntryItem, error) {
 	return item, nil
 }
 
+func DeleteItem(item entry.EntryItem) (entry.EntryItem, error) {
+	return item, nil
+}
+
 func GetAll() ([]entry.EntryItem, error) {
 
 	items := make([]entry.EntryItem, 0)

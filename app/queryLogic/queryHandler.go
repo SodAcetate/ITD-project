@@ -14,15 +14,6 @@ import (
 // из internalLogic получает объект message и новое состояние (string)
 // в бота передаёт сообщение tgbotapi.MessageConfig
 
-// разметка кнопочек в начальном состоянии
-var startKeyboard = tgbotapi.NewReplyKeyboard(
-	tgbotapi.NewKeyboardButtonRow(
-		tgbotapi.NewKeyboardButton("Каталог"),
-		tgbotapi.NewKeyboardButton("Добавить"),
-		tgbotapi.NewKeyboardButton("Удалить"),
-	),
-)
-
 func buildMarkup(buttons []string) tgbotapi.ReplyKeyboardMarkup {
 	kb_buttons := []tgbotapi.KeyboardButton{}
 	for _, button := range buttons {
