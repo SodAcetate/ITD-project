@@ -25,42 +25,43 @@ func (core *Core) Deinit() {
 // на выход передаёт объекты message и состояние (srtring)
 
 // Получить текстовое представление предмета
-func ItemToString(entry.EntryItem) string
+func itemToString(entry.EntryItem) string
+
+// Получить EntryUser
+func getUserInfo(ID int64) entry.EntryUser
 
 // Получить из базы список всех предметов
 // Вернуть сообщение с инфой о всех предметах
-func GetCatalogue(ID int64) (message.Message, string)
+func (core *Core) GetCatalogue(ID int64) (message.Message, string)
 
 // Создаёт пустую структурку EntryItem, пишет её в кэш
 // Вызывает функцию AskItemName
-func AddItemInit(ID int64) (message.Message, string)
+func (core *Core) AddItemInit(ID int64) (message.Message, string)
 
 // Запрашивает у юзера название предмета
 // Возвращает состояние add_item_name
-func AskItemName(ID int64) (message.Message, string)
+func (core *Core) AskItemName(ID int64) (message.Message, string)
 
 // Пишет имя в структуру в кэше
 // Даёт пользователю кнопки: Изменить имя, Изменить описание, Отмена, Готово
 // Возвращает состояние add_item_wait
-func AddItemName(ID int64, input string) (message.Message, string)
+func (core *Core) AddItemName(ID int64, input string) (message.Message, string)
 
 // Запрашивает у юзера описание
 // Возвращает состояние add_item_desc
-func AskItemDescription(ID int64) (message.Message, string)
+func (core *Core) AskItemDescription(ID int64) (message.Message, string)
 
 // Пишет описание в структуру в кэше
 // Даёт пользователю кнопки: Изменить имя, Изменить описание, Отмена, Готово
 // Возвращает состояние add_item_wait
-func AddItemDescription(ID int64, input string) (message.Message, string)
+func (core *Core) AddItemDescription(ID int64, input string) (message.Message, string)
 
 // Удаляет структуру из кеша
 // Возвращает состояние start
-func AddItemCancel(ID int64) (message.Message, string)
+func (core *Core) AddItemCancel(ID int64) (message.Message, string)
 
 // Вызывает dbcontext.AddItem, передаёт готовую структуру из кеша
 // Возвращает состояние start
-func AddItemPost(ID int64) (message.Message, string)
+func (core *Core) AddItemPost(ID int64) (message.Message, string)
 
-func RemoveItemInit(ID int64) (message.Message, string)
-
-func GetUserInfo(ID int64) entry.EntryUser
+func (core *Core) RemoveItemInit(ID int64) (message.Message, string)

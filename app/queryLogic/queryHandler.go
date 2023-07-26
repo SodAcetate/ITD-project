@@ -9,11 +9,16 @@ import (
 )
 
 type QueryHandler struct {
-	Core internallogic.Core
+	Core     internallogic.Core
+	stateMap map[string]func(*tgbotapi.Update) (message.Message, string)
 }
 
 func (qHandler *QueryHandler) Init() {
 	qHandler.Core.Init()
+	qHandler.stateMap = map[string]func(*tgbotapi.Update) (message.Message, string){
+		"start":         qHandler.startHandle,
+		"add_item_name": qHandler.addItemNameHandle,
+	}
 }
 
 func (qHandler *QueryHandler) Deinit() {
@@ -36,23 +41,18 @@ func buildMarkup(buttons []string) tgbotapi.ReplyKeyboardMarkup {
 	return kb
 }
 
-var stateMap = map[string]func(*tgbotapi.Update) (message.Message, string){
-	"start":         startHandle,
-	"add_item_name": addItemNameHandle,
-}
-
 // начальное состояние ("главное меню")
-func startHandle(update *tgbotapi.Update) (message.Message, string) {
+func (qHandler *QueryHandler) startHandle(update *tgbotapi.Update) (message.Message, string) {
 	var msg message.Message
 	var new_state string
 
 	switch update.Message.Text {
 	case "Каталог":
-		msg, new_state = internallogic.GetCatalogue(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.GetCatalogue(update.Message.Chat.ID)
 	case "Добавить":
-		msg, new_state = internallogic.AddItemInit(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.AddItemInit(update.Message.Chat.ID)
 	case "Удалить":
-		msg, new_state = internallogic.RemoveItemInit(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.RemoveItemInit(update.Message.Chat.ID)
 	default:
 		msg.Text = "HelloWorld!"
 		msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
@@ -63,15 +63,15 @@ func startHandle(update *tgbotapi.Update) (message.Message, string) {
 }
 
 // Добавление предмета [1] -- имя
-func addItemNameHandle(update *tgbotapi.Update) (message.Message, string) {
+func (qHandler *QueryHandler) addItemNameHandle(update *tgbotapi.Update) (message.Message, string) {
 	var new_state string
 	var msg message.Message
 
 	if update.Message.Text == "Отмена" {
-		return startHandle(update)
+		return qHandler.startHandle(update)
 	}
 
-	msg, new_state = internallogic.AddItemName(update.Message.Chat.ID, update.Message.Text)
+	msg, new_state = qHandler.Core.AddItemName(update.Message.Chat.ID, update.Message.Text)
 
 	return msg, new_state
 }
@@ -85,7 +85,7 @@ func (qHandler *QueryHandler) Process(update *tgbotapi.Update) tgbotapi.MessageC
 	// создаём пустой респонс
 	response := tgbotapi.NewMessage(ID, "")
 	// вызываем соответствующую ручку
-	msg, new_state := stateMap[state](update)
+	msg, new_state := qHandler.stateMap[state](update)
 	// конвертим Message -> MessageConfig
 	response.Text = msg.Text
 	response.ReplyMarkup = buildMarkup(msg.Buttons)
