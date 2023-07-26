@@ -3,6 +3,7 @@ package internallogic
 import (
 	"fmt"
 	dbhandler "main/app/dbLogic"
+	"main/shared/entry"
 	"main/shared/message"
 )
 
@@ -26,13 +27,35 @@ func GetCatalogue(ID int64) (message.Message, string) {
 }
 
 func AddItemInit(ID int64) (message.Message, string) {
-	state := "start"
-	text := "Добавление пока не работает :("
+	new_state := "add_item_name"
+	text := "Введите название предмета"
 	var msg message.Message
 	msg.Text = text
 	// Хардкод временный. Нужно реализовать markupMap.
-	msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
-	return msg, state
+	msg.Buttons = []string{"Отмена"}
+	return msg, new_state
+}
+
+func AddItemName(ID int64, input string) (message.Message, string) {
+	var msg message.Message
+	var new_state string
+
+	if len(input) <= 30 {
+		var item entry.EntryItem
+		item.Name = input
+		item.UserInfo = GetUserInfo(ID)
+		dbhandler.AddItem(item)
+
+		msg.Text = fmt.Sprintf("\"%s\" успешно добавлен", input)
+		msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
+		new_state = "start"
+	} else {
+		msg.Text = "Сори, не больше 30 символов!"
+		msg.Buttons = []string{"Отмена"}
+		new_state = "add_item_name"
+	}
+	return msg, new_state
+
 }
 
 func RemoveItemInit(ID int64) (message.Message, string) {
@@ -43,4 +66,8 @@ func RemoveItemInit(ID int64) (message.Message, string) {
 	// Хардкод временный. Нужно реализовать markupMap.
 	msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
 	return msg, state
+}
+
+func GetUserInfo(ID int64) entry.EntryUser {
+	return dbhandler.GetPlaceholderUser()
 }

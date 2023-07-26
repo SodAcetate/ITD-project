@@ -25,42 +25,60 @@ func buildMarkup(buttons []string) tgbotapi.ReplyKeyboardMarkup {
 	return kb
 }
 
-var stateMap = map[string]func(*tgbotapi.Update) (tgbotapi.MessageConfig, string){
-	"start": startHandle,
+var stateMap = map[string]func(*tgbotapi.Update) (message.Message, string){
+	"start":         startHandle,
+	"add_item_name": addItemNameHandle,
 }
 
 // начальное состояние ("главное меню")
-func startHandle(update *tgbotapi.Update) (tgbotapi.MessageConfig, string) {
-	// пустой ответ
-	ID := update.Message.Chat.ID
-	response := tgbotapi.NewMessage(ID, "")
-
-	var new_state string
+func startHandle(update *tgbotapi.Update) (message.Message, string) {
 	var msg message.Message
+	var new_state string
 
 	switch update.Message.Text {
 	case "Каталог":
-		msg, new_state = internallogic.GetCatalogue(ID)
+		msg, new_state = internallogic.GetCatalogue(update.Message.Chat.ID)
 	case "Добавить":
-		msg, new_state = internallogic.AddItemInit(ID)
+		msg, new_state = internallogic.AddItemInit(update.Message.Chat.ID)
 	case "Удалить":
-		msg, new_state = internallogic.RemoveItemInit(ID)
+		msg, new_state = internallogic.RemoveItemInit(update.Message.Chat.ID)
 	default:
 		msg.Text = "HelloWorld!"
 		msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
 		new_state = "start"
 	}
-	response.Text = msg.Text
-	response.ReplyMarkup = buildMarkup(msg.Buttons)
-	return response, new_state
+
+	return msg, new_state
+}
+
+// Добавление предмета [1] -- имя
+func addItemNameHandle(update *tgbotapi.Update) (message.Message, string) {
+	var new_state string
+	var msg message.Message
+
+	if update.Message.Text == "Отмена" {
+		return startHandle(update)
+	}
+
+	msg, new_state = internallogic.AddItemName(update.Message.Chat.ID, update.Message.Text)
+
+	return msg, new_state
 }
 
 // логика обработки запросов
 func Process(update *tgbotapi.Update) tgbotapi.MessageConfig {
-	// получаем состояние юзера и вызываем соответствующую ему ручку
-	state := dbhandler.GetUserState(update.Message.Chat.ID)
-	log.Printf("ID %d: state %s", update.Message.Chat.ID, state)
+	// получаем айди юзера и состояние
+	ID := update.Message.Chat.ID
+	state := dbhandler.GetUserState(ID)
+	log.Printf("ID %d: state %s", ID, state)
+	// создаём пустой респонс
+	response := tgbotapi.NewMessage(ID, "")
+	// вызываем соответствующую ручку
 	msg, new_state := stateMap[state](update)
-	dbhandler.UpdateUserState(new_state)
-	return msg
+	// конвертим Message -> MessageConfig
+	response.Text = msg.Text
+	response.ReplyMarkup = buildMarkup(msg.Buttons)
+
+	dbhandler.UpdateUserState(update.Message.Chat.ID, new_state)
+	return response
 }
