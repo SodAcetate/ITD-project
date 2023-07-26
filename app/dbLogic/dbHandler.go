@@ -4,6 +4,17 @@ import (
 	entry "main/shared/entry"
 )
 
+type DbHandler struct {
+}
+
+func (db *DbHandler) Init() {
+
+}
+
+func (db *DbHandler) Deinit() {
+
+}
+
 // получает на вход объект entry (EntryItem или EntryUser)
 // делает запрос к БД
 // из БД получает какую-то структурку, преобразует её в entry
@@ -28,27 +39,27 @@ func GetPlaceholderUser() entry.EntryUser {
 	return placeholderUser
 }
 
-func GetUserState(ID int64) string {
+func (db *DbHandler) GetUserState(ID int64) string {
 	return "start"
 }
 
-func UpdateUserState(new_state string) error {
+func (db *DbHandler) UpdateUserState(ID int64, new_state string) error {
 	return nil
 }
 
-func AddItem(item entry.EntryItem) (entry.EntryItem, error) {
+func (db *DbHandler) AddItem(item entry.EntryItem) (entry.EntryItem, error) {
 	return item, nil
 }
 
-func EditItem(item entry.EntryItem) (entry.EntryItem, error) {
+func (db *DbHandler) EditItem(item entry.EntryItem) (entry.EntryItem, error) {
 	return item, nil
 }
 
-func DeleteItem(item entry.EntryItem) (entry.EntryItem, error) {
+func (db *DbHandler) DeleteItem(item entry.EntryItem) (entry.EntryItem, error) {
 	return item, nil
 }
 
-func GetAll() ([]entry.EntryItem, error) {
+func (db *DbHandler) GetAll() ([]entry.EntryItem, error) {
 
 	items := make([]entry.EntryItem, 0)
 	items = append(items, GetPlaceholderItem())

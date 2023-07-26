@@ -16,6 +16,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	var qHandler queryhandler.QueryHandler
+	qHandler.Init()
+	defer qHandler.Deinit()
+
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
@@ -25,7 +29,7 @@ func main() {
 
 		// Process -- логика обработки запросов
 		log.Printf("Update from %d [%s]", update.Message.Chat.ID, update.Message.Chat.UserName)
-		msg := queryhandler.Process(&update)
+		msg := qHandler.Process(&update)
 		bot.Send(msg)
 	}
 

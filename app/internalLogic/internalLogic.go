@@ -1,73 +1,66 @@
 package internallogic
 
 import (
-	"fmt"
 	dbhandler "main/app/dbLogic"
 	"main/shared/entry"
 	"main/shared/message"
 )
+
+type Core struct {
+	Db dbhandler.DbHandler
+}
+
+// Инициализация
+func (core *Core) Init() {
+	core.Db.Init()
+}
+
+func (core *Core) Deinit() {
+	core.Db.Deinit()
+}
 
 // получает на вход ID юзера и иногда сообщение
 // в dbHandler передаёт объект entry (EntryItem или EntryUser)
 // из dbHandler получает объекты entry и error
 // на выход передаёт объекты message и состояние (srtring)
 
-func GetCatalogue(ID int64) (message.Message, string) {
-	text := "Каталог"
-	state := "start"
-	items, _ := dbhandler.GetAll()
-	for _, item := range items {
-		text = text + fmt.Sprintf("\n[%d] %s\n%s @%s", item.ID, item.Name, item.UserInfo.Name, item.UserInfo.Contact)
-	}
-	var msg message.Message
-	msg.Text = text
-	// Хардкод временный. Нужно реализовать markupMap.
-	msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
-	return msg, state
-}
+// Получить текстовое представление предмета
+func ItemToString(entry.EntryItem) string
 
-func AddItemInit(ID int64) (message.Message, string) {
-	new_state := "add_item_name"
-	text := "Введите название предмета"
-	var msg message.Message
-	msg.Text = text
-	// Хардкод временный. Нужно реализовать markupMap.
-	msg.Buttons = []string{"Отмена"}
-	return msg, new_state
-}
+// Получить из базы список всех предметов
+// Вернуть сообщение с инфой о всех предметах
+func GetCatalogue(ID int64) (message.Message, string)
 
-func AddItemName(ID int64, input string) (message.Message, string) {
-	var msg message.Message
-	var new_state string
+// Создаёт пустую структурку EntryItem, пишет её в кэш
+// Вызывает функцию AskItemName
+func AddItemInit(ID int64) (message.Message, string)
 
-	if len(input) <= 30 {
-		var item entry.EntryItem
-		item.Name = input
-		item.UserInfo = GetUserInfo(ID)
-		dbhandler.AddItem(item)
+// Запрашивает у юзера название предмета
+// Возвращает состояние add_item_name
+func AskItemName(ID int64) (message.Message, string)
 
-		msg.Text = fmt.Sprintf("\"%s\" успешно добавлен", input)
-		msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
-		new_state = "start"
-	} else {
-		msg.Text = "Сори, не больше 30 символов!"
-		msg.Buttons = []string{"Отмена"}
-		new_state = "add_item_name"
-	}
-	return msg, new_state
+// Пишет имя в структуру в кэше
+// Даёт пользователю кнопки: Изменить имя, Изменить описание, Отмена, Готово
+// Возвращает состояние add_item_wait
+func AddItemName(ID int64, input string) (message.Message, string)
 
-}
+// Запрашивает у юзера описание
+// Возвращает состояние add_item_desc
+func AskItemDescription(ID int64) (message.Message, string)
 
-func RemoveItemInit(ID int64) (message.Message, string) {
-	state := "start"
-	text := "Удаление пока не работает :("
-	var msg message.Message
-	msg.Text = text
-	// Хардкод временный. Нужно реализовать markupMap.
-	msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
-	return msg, state
-}
+// Пишет описание в структуру в кэше
+// Даёт пользователю кнопки: Изменить имя, Изменить описание, Отмена, Готово
+// Возвращает состояние add_item_wait
+func AddItemDescription(ID int64, input string) (message.Message, string)
 
-func GetUserInfo(ID int64) entry.EntryUser {
-	return dbhandler.GetPlaceholderUser()
-}
+// Удаляет структуру из кеша
+// Возвращает состояние start
+func AddItemCancel(ID int64) (message.Message, string)
+
+// Вызывает dbcontext.AddItem, передаёт готовую структуру из кеша
+// Возвращает состояние start
+func AddItemPost(ID int64) (message.Message, string)
+
+func RemoveItemInit(ID int64) (message.Message, string)
+
+func GetUserInfo(ID int64) entry.EntryUser

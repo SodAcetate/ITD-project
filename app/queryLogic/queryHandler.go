@@ -2,12 +2,23 @@ package queryhandler
 
 import (
 	"log"
-	dbhandler "main/app/dbLogic"
 	internallogic "main/app/internalLogic"
 	"main/shared/message"
 
 	tgbotapi "github.com/Syfaro/telegram-bot-api"
 )
+
+type QueryHandler struct {
+	Core internallogic.Core
+}
+
+func (qHandler *QueryHandler) Init() {
+	qHandler.Core.Init()
+}
+
+func (qHandler *QueryHandler) Deinit() {
+	qHandler.Core.Deinit()
+}
 
 // получает на вход объект tgbotapi.Update
 // в internalLogic передаёт ID юзера и сообщение
@@ -66,10 +77,10 @@ func addItemNameHandle(update *tgbotapi.Update) (message.Message, string) {
 }
 
 // логика обработки запросов
-func Process(update *tgbotapi.Update) tgbotapi.MessageConfig {
+func (qHandler *QueryHandler) Process(update *tgbotapi.Update) tgbotapi.MessageConfig {
 	// получаем айди юзера и состояние
 	ID := update.Message.Chat.ID
-	state := dbhandler.GetUserState(ID)
+	state := qHandler.Core.Db.GetUserState(ID)
 	log.Printf("ID %d: state %s", ID, state)
 	// создаём пустой респонс
 	response := tgbotapi.NewMessage(ID, "")
@@ -79,6 +90,6 @@ func Process(update *tgbotapi.Update) tgbotapi.MessageConfig {
 	response.Text = msg.Text
 	response.ReplyMarkup = buildMarkup(msg.Buttons)
 
-	dbhandler.UpdateUserState(update.Message.Chat.ID, new_state)
+	qHandler.Core.Db.UpdateUserState(update.Message.Chat.ID, new_state)
 	return response
 }
