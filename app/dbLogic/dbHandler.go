@@ -1,7 +1,12 @@
 package dbhandler
 
 import (
+	"context"
+	"fmt"
 	entry "main/shared/entry"
+	"os"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // получает на вход объект entry (EntryItem или EntryUser)
@@ -28,8 +33,28 @@ func GetPlaceholderUser() entry.EntryUser {
 	return placeholderUser
 }
 
-func GetUserState(ID int64) string {
-	return "start"
+func ConnectDB(coninfo string) pgx.Conn {
+	conn, err := pgx.Connect(context.Background(), coninfo)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "connection to db failed: %v\n", err)
+	} else {
+		fmt.Printf("succes")
+	}
+	return *conn
+}
+
+func CloseDB(conn *pgx.Conn) {
+	conn.Close(context.Background())
+}
+
+func GetUserState(ID int64, conn *pgx.Conn) string {
+	var state string
+	err := conn.QueryRow(context.Background(), fmt.Sprintf("SELECT state FROM users WHERE user_id = %d", ID)).Scan(&state)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+	}
+	return state
+	//return "start"
 }
 
 func UpdateUserState(new_state string) error {
