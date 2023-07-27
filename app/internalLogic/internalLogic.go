@@ -28,10 +28,14 @@ func (core *Core) Deinit() {
 // на выход передаёт объекты message и состояние (srtring)
 
 // Получить текстовое представление предмета
-func itemToString(entry.EntryItem) string
+func itemToString(entry.EntryItem) string {
+	return ""
+}
 
 // Получить EntryUser
-func getUserInfo(ID int64) entry.EntryUser
+func (core *Core) getUserInfo(ID int64) entry.EntryUser {
+	return core.Db.GetPlaceholderUser()
+}
 
 // Получить из базы список всех предметов
 // Вернуть сообщение с инфой о всех предметах [id] name - name @contact
@@ -84,7 +88,7 @@ func (core *Core) AddItemName(ID int64, input string) (message.Message, string) 
 
 	if len(input) <= 30 {
 		globalItem.Name = input
-		globalItem.UserInfo = getUserInfo(ID)
+		globalItem.UserInfo = core.getUserInfo(ID)
 		info.Text = "Имя успешно добавлено"
 		info.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
 		state = "add_item_wait"
@@ -132,7 +136,11 @@ func (core *Core) AddItemDescription(ID int64, input string) (message.Message, s
 
 // Удаляет структуру из кеша
 // Возвращает состояние start
-func (core *Core) AddItemCancel(ID int64) (message.Message, string)
+func (core *Core) AddItemCancel(ID int64) (message.Message, string) {
+	msg := message.Message{Text: "Добавление отменено", Buttons: []string{"Каталог", "Добавить", "Удалить"}}
+	state := "start"
+	return msg, state
+}
 
 // Вызывает dbcontext.AddItem, передаёт готовую структуру из кеша
 // Возвращает состояние start
@@ -147,4 +155,8 @@ func (core *Core) AddItemPost(ID int64) (message.Message, string) {
 	return info, state
 }
 
-func (core *Core) RemoveItemInit(ID int64) (message.Message, string)
+func (core *Core) RemoveItemInit(ID int64) (message.Message, string) {
+	msg := message.Message{Text: "Удаление пока не работает", Buttons: []string{"Каталог", "Добавить", "Удалить"}}
+	state := "start"
+	return msg, state
+}
