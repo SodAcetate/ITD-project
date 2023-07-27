@@ -17,7 +17,9 @@ func (qHandler *QueryHandler) Init() {
 	qHandler.Core.Init()
 	qHandler.stateMap = map[string]func(*tgbotapi.Update) (message.Message, string){
 		"start":         qHandler.startHandle,
+		"add_item_wait": qHandler.addItemWaitHandle,
 		"add_item_name": qHandler.addItemNameHandle,
+		"add_item_desc": qHandler.addItemDescHandle,
 	}
 }
 
@@ -62,16 +64,53 @@ func (qHandler *QueryHandler) startHandle(update *tgbotapi.Update) (message.Mess
 	return msg, new_state
 }
 
+// Добавление предмета [0] -- ожидание команды
+func (qHandler *QueryHandler) addItemWaitHandle(update *tgbotapi.Update) (message.Message, string) {
+	var msg message.Message
+	var new_state string
+
+	switch update.Message.Text {
+	case "Изменить имя":
+		msg, new_state = qHandler.Core.AskItemName(update.Message.Chat.ID)
+	case "Изменить описание":
+		msg, new_state = qHandler.Core.AskItemDescription(update.Message.Chat.ID)
+	case "Отмена":
+		msg, new_state = qHandler.Core.AddItemCancel(update.Message.Chat.ID)
+	case "Готово":
+		msg, new_state = qHandler.Core.AddItemPost(update.Message.Chat.ID)
+	default:
+		msg.Text = "HelloWorld!"
+		msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
+		new_state = "start"
+	}
+
+	return msg, new_state
+}
+
 // Добавление предмета [1] -- имя
 func (qHandler *QueryHandler) addItemNameHandle(update *tgbotapi.Update) (message.Message, string) {
 	var new_state string
 	var msg message.Message
 
 	if update.Message.Text == "Отмена" {
-		return qHandler.startHandle(update)
+		msg, new_state = qHandler.Core.AddItemCancel(update.Message.Chat.ID)
+	} else {
+		msg, new_state = qHandler.Core.AddItemName(update.Message.Chat.ID, update.Message.Text)
 	}
 
-	msg, new_state = qHandler.Core.AddItemName(update.Message.Chat.ID, update.Message.Text)
+	return msg, new_state
+}
+
+// Добавление предмета [2] -- описание
+func (qHandler *QueryHandler) addItemDescHandle(update *tgbotapi.Update) (message.Message, string) {
+	var new_state string
+	var msg message.Message
+
+	if update.Message.Text == "Отмена" {
+		msg, new_state = qHandler.Core.AddItemCancel(update.Message.Chat.ID)
+	} else {
+		msg, new_state = qHandler.Core.AddItemDescription(update.Message.Chat.ID, update.Message.Text)
+	}
 
 	return msg, new_state
 }
