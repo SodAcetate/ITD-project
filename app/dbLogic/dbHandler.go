@@ -22,16 +22,16 @@ func (db *DbHandler) Deinit() {
 // Исключение -- логика работы с состояниями
 
 // сгенерить предмет-заглушку
-func GetPlaceholderItem() entry.EntryItem {
+func (db *DbHandler) GetPlaceholderItem() entry.EntryItem {
 	var placeholderItem entry.EntryItem
 	placeholderItem.ID = 1
 	placeholderItem.Name = "PlaceholderItem"
-	placeholderItem.UserInfo = GetPlaceholderUser()
+	placeholderItem.UserInfo = db.GetPlaceholderUser()
 	return placeholderItem
 }
 
 // сгенерить юзера-заглушку
-func GetPlaceholderUser() entry.EntryUser {
+func (db *DbHandler) GetPlaceholderUser() entry.EntryUser {
 	var placeholderUser entry.EntryUser
 	placeholderUser.ID = 1
 	placeholderUser.Name = "PlaceholderUsername"
@@ -62,7 +62,7 @@ func (db *DbHandler) DeleteItem(item entry.EntryItem) (entry.EntryItem, error) {
 func (db *DbHandler) GetAll() ([]entry.EntryItem, error) {
 
 	items := make([]entry.EntryItem, 0)
-	items = append(items, GetPlaceholderItem())
+	items = append(items, db.GetPlaceholderItem())
 
 	return items, nil
 }

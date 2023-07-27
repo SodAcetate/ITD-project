@@ -42,7 +42,7 @@ func (core *Core) getUserInfo(ID int64) entry.EntryUser {
 func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 	text := "Каталог\n"
 	state := "start"
-	items, _ := dbhandler.GetAll()
+	items, _ := core.Db.GetAll()
 	for _, item := range items {
 		text += fmt.Sprintf("\n[%d] %s - %s @%s", item.ID, item.Name, item.UserInfo.Name, item.UserInfo.Contact)
 	}
@@ -82,7 +82,7 @@ func (core *Core) AskItemName(ID int64) (message.Message, string) {
 // Возвращает состояние add_item_wait
 func (core *Core) AddItemName(ID int64, input string) (message.Message, string) {
 	var (
-		info message.Message
+		info  message.Message
 		state string
 	)
 
@@ -117,7 +117,7 @@ func (core *Core) AskItemDescription(ID int64) (message.Message, string) {
 // Возвращает состояние add_item_wait
 func (core *Core) AddItemDescription(ID int64, input string) (message.Message, string) {
 	var (
-		info message.Message
+		info  message.Message
 		state string
 	)
 
@@ -146,7 +146,7 @@ func (core *Core) AddItemCancel(ID int64) (message.Message, string) {
 // Возвращает состояние start
 func (core *Core) AddItemPost(ID int64) (message.Message, string) {
 	state := "start"
-	dbhandler.AddItem(globalItem)
+	core.Db.AddItem(globalItem)
 
 	var info message.Message
 	info.Text = "Товар успешно добавлен"
