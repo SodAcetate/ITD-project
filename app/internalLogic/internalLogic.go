@@ -90,7 +90,7 @@ func (core *Core) AddItemName(ID int64, input string) (message.Message, string) 
 		state = "add_item_wait"
 	} else {
 		info.Text = "Сорян, длина названия не больше 30 символов"
-		info.Buttons = []string{"Изменить имя"} // может сюда еще отмену добавить?
+		info.Buttons = []string{"Отмена"} // может сюда еще отмену добавить?
 		state = "add_item_name"
 	}
 	return info, state
@@ -124,7 +124,7 @@ func (core *Core) AddItemDescription(ID int64, input string) (message.Message, s
 		state = "add_item_wait"
 	} else {
 		info.Text = "Сорян, длина описания не больше 256 символов"
-		info.Buttons = []string{"Изменить описание"} // может сюда еще отмену добавить?
+		info.Buttons = []string{"Отмена"} // может сюда еще отмену добавить?
 		state = "add_item_desc"
 	}
 	return info, state
