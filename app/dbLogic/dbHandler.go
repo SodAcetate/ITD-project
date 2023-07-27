@@ -9,6 +9,11 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+type dbhandler struct {
+	conn     pgx.Conn
+	conninfo string
+}
+
 // получает на вход объект entry (EntryItem или EntryUser)
 // делает запрос к БД
 // из БД получает какую-то структурку, преобразует её в entry
@@ -16,16 +21,16 @@ import (
 // Исключение -- логика работы с состояниями
 
 // сгенерить предмет-заглушку
-func GetPlaceholderItem() entry.EntryItem {
+func (db *dbhandler) GetPlaceholderItem() entry.EntryItem {
 	var placeholderItem entry.EntryItem
 	placeholderItem.ID = 1
 	placeholderItem.Name = "PlaceholderItem"
-	placeholderItem.UserInfo = GetPlaceholderUser()
+	placeholderItem.UserInfo = db.GetPlaceholderUser()
 	return placeholderItem
 }
 
 // сгенерить юзера-заглушку
-func GetPlaceholderUser() entry.EntryUser {
+func (db *dbhandler) GetPlaceholderUser() entry.EntryUser {
 	var placeholderUser entry.EntryUser
 	placeholderUser.ID = 1
 	placeholderUser.Name = "PlaceholderUsername"
@@ -33,23 +38,21 @@ func GetPlaceholderUser() entry.EntryUser {
 	return placeholderUser
 }
 
-func ConnectDB(coninfo string) pgx.Conn {
-	conn, err := pgx.Connect(context.Background(), coninfo)
+func (db *dbhandler) ConnectDB() {
+	con, err := pgx.Connect(context.Background(), db.conninfo)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "connection to db failed: %v\n", err)
-	} else {
-		fmt.Printf("succes")
 	}
-	return *conn
+	db.conn = *con
 }
 
-func CloseDB(conn *pgx.Conn) {
+func (db *dbhandler) CloseDB(conn *pgx.Conn) {
 	conn.Close(context.Background())
 }
 
-func GetUserState(ID int64, conn *pgx.Conn) string {
+func (db *dbhandler) GetUserState(ID int64) string {
 	var state string
-	err := conn.QueryRow(context.Background(), fmt.Sprintf("SELECT state FROM users WHERE user_id = %d", ID)).Scan(&state)
+	err := db.conn.QueryRow(context.Background(), fmt.Sprintf("SELECT state FROM users WHERE user_id = %d", ID)).Scan(&state)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 	}
@@ -57,26 +60,39 @@ func GetUserState(ID int64, conn *pgx.Conn) string {
 	//return "start"
 }
 
-func UpdateUserState(new_state string) error {
-	return nil
+func (db *dbhandler) UpdateUserState(ID int64, new_state string) error {
+	_, err := db.conn.Exec(context.Background(), "UPDATE users SET state=$1 WHERE user_id=$2", new_state, ID)
+	return err
 }
 
-func AddItem(item entry.EntryItem) (entry.EntryItem, error) {
+func (db *dbhandler) AddItem(item entry.EntryItem) error {
+	row := db.conn.QueryRow(context.Background(), "INSERT INTO items (user_id, description) VALUES ($1, $2) RETURNING ID", item.UserInfo.ID, item.Name)
+	var id int64
+	err := row.Scan(&id)
+	return err
+	//здесь должно быть добавление юзера если по user_id нет данных в таблице users
+	//err = db.conn.QueryRow(context.Background(), "SELECT state FROM users WHERE user_id = $1", ID).Scan(&state)
+}
+
+func (db *dbhandler) AddUser(item entry.EntryUser) error {
+	row := db.conn.QueryRow(context.Background(), "INSERT INTO users (user_id, user-name, contacts) VALUES ($1, $2, $3) RETURNING user_id", item.ID, item.Name, item.Contact)
+	var id int64
+	err := row.Scan(&id)
+	return err
+}
+
+func (db *dbhandler) EditItem(item entry.EntryItem) (entry.EntryItem, error) {
 	return item, nil
 }
 
-func EditItem(item entry.EntryItem) (entry.EntryItem, error) {
+func (db *dbhandler) DeleteItem(item entry.EntryItem) (entry.EntryItem, error) {
 	return item, nil
 }
 
-func DeleteItem(item entry.EntryItem) (entry.EntryItem, error) {
-	return item, nil
-}
-
-func GetAll() ([]entry.EntryItem, error) {
+func (db *dbhandler) GetAll() ([]entry.EntryItem, error) {
 
 	items := make([]entry.EntryItem, 0)
-	items = append(items, GetPlaceholderItem())
+	items = append(items, db.GetPlaceholderItem())
 
 	return items, nil
 }
