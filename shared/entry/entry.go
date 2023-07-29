@@ -1,17 +1,15 @@
 package entry
 
-type Entry struct {
-	ID int64
-}
-
 type EntryItem struct {
-	Entry
+	ID       int64
 	Name     string
+	Desc     string
 	UserInfo EntryUser
 }
 
 type EntryUser struct {
-	Entry
+	ID      int64
+	State   string
 	Name    string
 	Contact string
 }
