@@ -2,25 +2,27 @@ package internallogic
 
 import (
 	"fmt"
+	cachehandler "main/app/cacheHandler"
 	dbhandler "main/app/dbLogic"
 	"main/shared/entry"
 	"main/shared/message"
+	"strconv"
 )
 
-var globalItem entry.EntryItem
-var globalCataloge []entry.EntryItem
-
 type Core struct {
-	Db dbhandler.DbHandler
+	Db    dbhandler.DbHandler
+	Cache cachehandler.Cache
 }
 
 // Инициализация
 func (core *Core) Init() {
 	core.Db.Init()
+	core.Cache.Init()
 }
 
 func (core *Core) Deinit() {
 	core.Db.Deinit()
+	core.Cache.Deinit()
 }
 
 // получает на вход ID юзера и иногда сообщение
@@ -43,8 +45,11 @@ func (core *Core) getUserInfo(ID int64) entry.EntryUser {
 func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 	text := "Каталог\n"
 	state := "cat"
-	globalCataloge, _ := core.Db.GetAll()
-	for _, item := range globalCataloge {
+	catalogue, _ := core.Db.GetAll()
+
+	core.Cache.SetCatalogue(ID, catalogue)
+
+	for _, item := range catalogue {
 		text += fmt.Sprintf("\n[%d] %s - %s @%s", item.ID, item.Name, item.UserInfo.Name, item.UserInfo.Contact)
 	}
 
@@ -63,6 +68,9 @@ func (core *Core) AddItemInit(ID int64) (message.Message, string) {
 		// new_item entry.EntryItem // кеша нет будет глабольная переменная
 		state string
 	)
+
+	core.Cache.SetCurrentItem(ID, entry.EntryItem{UserInfo: core.getUserInfo(ID)})
+
 	info, state = core.AskItemName(ID)
 	return info, state
 }
@@ -87,9 +95,12 @@ func (core *Core) AddItemName(ID int64, input string) (message.Message, string) 
 		state string
 	)
 
+	entry, _ := core.Cache.GetCurrentItem(ID)
+
 	if len(input) <= 30 {
-		globalItem.Name = input
-		globalItem.UserInfo = core.getUserInfo(ID)
+		entry.Name = input
+		core.Cache.SetCurrentItem(ID, entry)
+
 		info.Text = "Имя успешно добавлено"
 		info.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
 		state = "add_item_wait"
@@ -122,8 +133,12 @@ func (core *Core) AddItemDescription(ID int64, input string) (message.Message, s
 		state string
 	)
 
+	entry, _ := core.Cache.GetCurrentItem(ID)
+
 	if len(input) <= 256 {
-		globalItem.Desc = input
+		entry.Desc = input
+		core.Cache.SetCurrentItem(ID, entry)
+
 		info.Text = "Описание успешно добавлено"
 		info.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
 		state = "add_item_wait"
@@ -147,7 +162,8 @@ func (core *Core) AddItemCancel(ID int64) (message.Message, string) {
 // Возвращает состояние start
 func (core *Core) AddItemPost(ID int64) (message.Message, string) {
 	state := "start"
-	core.Db.AddItem(globalItem)
+	entry, _ := core.Cache.GetCurrentItem(ID)
+	core.Db.AddItem(entry)
 
 	var info message.Message
 	info.Text = "Товар успешно добавлен"
@@ -167,23 +183,30 @@ func (core *Core) RemoveItemInit(ID int64) (message.Message, string) {
 func (core *Core) EditItemInit(ID int64) (message.Message, string) {
 	var msg message.Message
 	msg.Text = "Выберите предмет для редактирования"
-	butt := make([]string, len(globalCataloge))
-	butt = append(butt, "Отмена")
-	for _, item := range globalCataloge {
-		butt = append(butt, fmt.Sprintf("%d", item.ID))
+
+	catalogue, _ := core.Cache.GetCatalogue(ID)
+
+	buttons := make([]string, len(catalogue)+1)
+	buttons = append(buttons, "Отмена")
+	for _, item := range catalogue {
+		buttons = append(buttons, fmt.Sprintf("%d", item.ID))
 	}
-	msg.Buttons = butt
+	msg.Buttons = buttons
 	state := "edit_item_select"
-	
+
 	return msg, state
 }
 
-func (core *Core) EditItemSelect(ID int64, itemNum int64) (message.Message, string) {
+func (core *Core) EditItemSelect(ID int64, input string) (message.Message, string) {
 	var msg message.Message
 
-	globalItem = globalCataloge[itemNum]
+	index, _ := strconv.Atoi(input)
 
-	msg.Text = fmt.Sprintf("Выбрано: %s", globalItem.Name)
+	catalogue, _ := core.Cache.GetCatalogue(ID)
+	entry := catalogue[index-1]
+	core.Cache.SetCurrentItem(ID, entry)
+
+	msg.Text = fmt.Sprintf("Выбрано: %s", entry.Name)
 	msg.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
 	state := "edit_item_wait"
 
@@ -193,8 +216,9 @@ func (core *Core) EditItemSelect(ID int64, itemNum int64) (message.Message, stri
 func (core *Core) EditItemPost(ID int64) (message.Message, string) {
 	state := "start"
 
-	core.Db.EditItem(globalItem)
-	
+	entry, _ := core.Cache.GetCurrentItem(ID)
+	core.Db.EditItem(entry)
+
 	var msg message.Message
 	msg.Text = "Товар успешно изменен"
 	msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
@@ -204,26 +228,28 @@ func (core *Core) EditItemPost(ID int64) (message.Message, string) {
 func (core *Core) DeleteItemInit(ID int64) (message.Message, string) {
 	var msg message.Message
 	msg.Text = "Выберите предмет для удаления"
-	butt := make([]string, len(globalCataloge))
-	butt = append(butt, "Отмена")
-	for _, item := range globalCataloge {
-		butt = append(butt, fmt.Sprintf("%d", item.ID))
+
+	catalogue, _ := core.Cache.GetCatalogue(ID)
+
+	buttons := make([]string, len(catalogue)+1)
+	buttons = append(buttons, "Отмена")
+	for _, item := range catalogue {
+		buttons = append(buttons, fmt.Sprintf("%d", item.ID))
 	}
-	msg.Buttons = butt
+	msg.Buttons = buttons
 	state := "delete_item_select"
-	
+
 	return msg, state
 }
 
 func (core *Core) DeleteItemSelect(ID int64, ItemNum int64) (message.Message, string) {
 	state := "start"
 
-	core.Db.DeleteItem(globalCataloge[ItemNum])
-	
+	entry, _ := core.Cache.GetCurrentItem(ID)
+	core.Db.DeleteItem(entry)
+
 	var msg message.Message
 	msg.Text = "Товар успешно удалён"
 	msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
 	return msg, state
 }
-
-// func (core *Core)
