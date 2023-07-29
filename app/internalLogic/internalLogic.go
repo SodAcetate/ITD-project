@@ -37,7 +37,8 @@ func itemToString(entry.EntryItem) string {
 
 // Получить EntryUser
 func (core *Core) getUserInfo(ID int64) entry.EntryUser {
-	return core.Db.GetPlaceholderUser()
+	user := entry.EntryUser{ID: ID, Contact: "@OneVVTG"}
+	return user
 }
 
 // Удаляет структуру из кеша
@@ -124,7 +125,7 @@ func (core *Core) AddItemName(ID int64, input string) (message.Message, string) 
 // Запрашивает у юзера описание
 // Возвращает состояние add_item_desc
 func (core *Core) AskItemDescription(ID int64) (message.Message, string) {
-	state := "add_item_desk"
+	state := "add_item_desc"
 	var info message.Message
 	info.Text = "Введите описание товара: "
 	info.Buttons = []string{"Отмена"}

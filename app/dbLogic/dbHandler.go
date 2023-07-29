@@ -3,6 +3,7 @@ package dbhandler
 import (
 	"context"
 	"fmt"
+	"log"
 	entry "main/shared/entry"
 	"os"
 
@@ -15,6 +16,7 @@ type DbHandler struct {
 }
 
 func (db *DbHandler) Init() {
+	db.Conninfo = "postgresql://postgres:123@localhost:5432/postgres"
 	con, err := pgx.Connect(context.Background(), db.Conninfo)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "connection to db failed: %v\n", err)
@@ -66,7 +68,8 @@ func (db *DbHandler) UpdateUserState(ID int64, new_state string) error {
 }
 
 func (db *DbHandler) AddItem(item entry.EntryItem) (entry.EntryItem, error) {
-	row := db.Conn.QueryRow(context.Background(), "INSERT INTO items (user_id, description) VALUES ($1, $2) RETURNING ID", item.UserInfo.ID, item.Name)
+	log.Println(fmt.Sprintf("%d : Adding item", item.UserInfo.ID))
+	row := db.Conn.QueryRow(context.Background(), "INSERT INTO items (name, user_id, description) VALUES ($1, $2, $3) RETURNING ID", item.Name, item.UserInfo.ID, item.Desc)
 	var id int64
 	err := row.Scan(&id)
 	item.ID = id
@@ -75,15 +78,15 @@ func (db *DbHandler) AddItem(item entry.EntryItem) (entry.EntryItem, error) {
 	//err = db.conn.QueryRow(context.Background(), "SELECT state FROM users WHERE user_id = $1", ID).Scan(&state)
 }
 
-func (db *DbHandler) AddUser(item entry.EntryUser) (entry.EntryUser, error) {
-	row := db.Conn.QueryRow(context.Background(), "INSERT INTO users_table (user_id, username, contacts) VALUES ($1, $2, $3) RETURNING user_id", item.ID, item.Name, item.Contact)
+func (db *DbHandler) AddUser(user entry.EntryUser) (entry.EntryUser, error) {
+	row := db.Conn.QueryRow(context.Background(), "INSERT INTO users_table (user_id, username, contacts) VALUES ($1, $2, $3) RETURNING user_id", user.ID, user.Name, user.Contact)
 	var id int64
 	err := row.Scan(&id)
-	return item, err
+	return user, err
 }
 
 func (db *DbHandler) EditItem(item entry.EntryItem) error {
-	_, err := db.Conn.Exec(context.Background(), "Update items SET user_id=$1, description=$2 WHERE id=$3", item.UserInfo.ID, item.Name, item.ID)
+	_, err := db.Conn.Exec(context.Background(), "Update items SET user_id=$1, name=$2, description=$3 WHERE id=$4", item.UserInfo.ID, item.Name, item.Desc, item.ID)
 	return err
 }
 
