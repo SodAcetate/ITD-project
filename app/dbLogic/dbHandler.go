@@ -65,28 +65,49 @@ func (db *DbHandler) UpdateUserState(ID int64, new_state string) error {
 	return err
 }
 
-func (db *DbHandler) AddItem(item entry.EntryItem) error {
+func (db *DbHandler) AddItem(item entry.EntryItem) (entry.EntryItem, error) {
 	row := db.Conn.QueryRow(context.Background(), "INSERT INTO items (user_id, description) VALUES ($1, $2) RETURNING ID", item.UserInfo.ID, item.Name)
 	var id int64
 	err := row.Scan(&id)
-	return err
+	item.ID = id
+	return item, err
 	//здесь должно быть добавление юзера если по user_id нет данных в таблице users
 	//err = db.conn.QueryRow(context.Background(), "SELECT state FROM users WHERE user_id = $1", ID).Scan(&state)
 }
 
-func (db *DbHandler) AddUser(item entry.EntryUser) error {
-	row := db.Conn.QueryRow(context.Background(), "INSERT INTO users (user_id, user-name, contacts) VALUES ($1, $2, $3) RETURNING user_id", item.ID, item.Name, item.Contact)
+func (db *DbHandler) AddUser(item entry.EntryUser) (entry.EntryUser, error) {
+	row := db.Conn.QueryRow(context.Background(), "INSERT INTO users_table (user_id, username, contacts) VALUES ($1, $2, $3) RETURNING user_id", item.ID, item.Name, item.Contact)
 	var id int64
 	err := row.Scan(&id)
+	return item, err
+}
+
+func (db *DbHandler) EditItem(item entry.EntryItem) error {
+	_, err := db.Conn.Exec(context.Background(), "Update items SET user_id=$1, description=$2 WHERE id=$3", item.UserInfo.ID, item.Name, item.ID)
 	return err
 }
 
-func (db *DbHandler) EditItem(item entry.EntryItem) (entry.EntryItem, error) {
-	return item, nil
+func (db *DbHandler) EditUser(item entry.EntryUser) error {
+	_, err := db.Conn.Exec(context.Background(), "Update users_table SET username=$1, contacts=$2 WHERE user_id=$3", item.Name, item.Contact, item.ID)
+	return err
 }
 
-func (db *DbHandler) DeleteItem(item entry.EntryItem) (entry.EntryItem, error) {
-	return item, nil
+func (db *DbHandler) DeleteItem(item entry.EntryItem) error {
+	if item.ID == 0 {
+		err := fmt.Errorf("Не указан ID")
+		return err
+	}
+	_, err := db.Conn.Exec(context.Background(), "DELETE FROM items WHERE id=$1", item.ID)
+	return err
+}
+
+func (db *DbHandler) DeleteUser(item entry.EntryUser) error {
+	if item.ID == 0 {
+		err := fmt.Errorf("Не указан ID")
+		return err
+	}
+	_, err := db.Conn.Exec(context.Background(), "DELETE FROM users_table WHERE user_id=$1", item.ID)
+	return err
 }
 
 func (db *DbHandler) GetAll() ([]entry.EntryItem, error) {
