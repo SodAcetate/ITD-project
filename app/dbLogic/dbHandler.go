@@ -16,7 +16,7 @@ type DbHandler struct {
 }
 
 func (db *DbHandler) Init() {
-	db.Conninfo = "postgresql://postgres:123@localhost:5432/postgres"
+	//db.Conninfo = "postgresql://postgres:123@localhost:5432/postgres"
 	con, err := pgx.Connect(context.Background(), db.Conninfo)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "connection to db failed: %v\n", err)
@@ -47,8 +47,8 @@ func (db *DbHandler) GetPlaceholderItem() entry.EntryItem {
 func (db *DbHandler) GetPlaceholderUser() entry.EntryUser {
 	var placeholderUser entry.EntryUser
 	placeholderUser.ID = 1
-	placeholderUser.Name = "PlaceholderUsername"
-	placeholderUser.Contact = "OneVVTG"
+	placeholderUser.Name = ""
+	placeholderUser.Contact = "dorm_market_bot"
 	return placeholderUser
 }
 
@@ -116,7 +116,16 @@ func (db *DbHandler) DeleteUser(item entry.EntryUser) error {
 func (db *DbHandler) GetAll() ([]entry.EntryItem, error) {
 
 	items := make([]entry.EntryItem, 0)
-	items = append(items, db.GetPlaceholderItem())
+	item := entry.EntryItem{}
+
+	rows, _ := db.Conn.Query(context.Background(), fmt.Sprintf("SELECT * FROM items"))
+	for rows.Next() {
+		//entry, _ := pgx.RowToStructByPos[entry.EntryItem](rows)
+		//items = append(items, entry)
+		rows.Scan(&item.ID, &item.UserInfo.ID, &item.Name, &item.Desc)
+		items = append(items, item)
+		log.Printf("Added item %s", item.Name)
+	}
 
 	return items, nil
 }

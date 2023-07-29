@@ -60,10 +60,10 @@ func (qHandler *QueryHandler) startHandle(update *tgbotapi.Update) (message.Mess
 	case "Добавить":
 		msg, new_state = qHandler.Core.AddItemInit(update.Message.Chat.ID)
 	case "Удалить":
-		msg, new_state = qHandler.Core.RemoveItemInit(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.DeleteItemInit(update.Message.Chat.ID)
 	default:
 		msg.Text = "HelloWorld!"
-		msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
+		msg.Buttons = []string{"Каталог", "Добавить", "Изменить", "Удалить"}
 		new_state = "start"
 	}
 
@@ -82,7 +82,7 @@ func (qHandler *QueryHandler) catHandle(update *tgbotapi.Update) (message.Messag
 		msg, new_state = qHandler.Core.DeleteItemInit(update.Message.Chat.ID)
 	default:
 		msg.Text = "HelloWorld!"
-		msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
+		msg.Buttons = []string{"Каталог", "Добавить", "Изменить", "Удалить"}
 		new_state = "start"
 	}
 
@@ -105,7 +105,7 @@ func (qHandler *QueryHandler) addItemWaitHandle(update *tgbotapi.Update) (messag
 		msg, new_state = qHandler.Core.AddItemPost(update.Message.Chat.ID)
 	default:
 		msg.Text = "HelloWorld!"
-		msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
+		msg.Buttons = []string{"Каталог", "Добавить", "Изменить", "Удалить"}
 		new_state = "start"
 	}
 
@@ -170,7 +170,7 @@ func (qHandler *QueryHandler) editItemWaitHandle(update *tgbotapi.Update) (messa
 		msg, new_state = qHandler.Core.EditItemPost(update.Message.Chat.ID)
 	default:
 		msg.Text = "HelloWorld!"
-		msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
+		msg.Buttons = []string{"Каталог", "Добавить", "Изменить", "Удалить"}
 		new_state = "start"
 	}
 

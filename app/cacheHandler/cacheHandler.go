@@ -3,6 +3,7 @@ package cachehandler
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	cacheentry "main/shared/cacheEntry"
 	"main/shared/entry"
 
@@ -94,10 +95,12 @@ func (cache *Cache) SetCatalogue(ID int64, catalogue []entry.EntryItem) error {
 	// Получаем данные из кеша
 	data, err := cache.Get(ID)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 	// Меняем состояние
 	data.Catalogue = catalogue
+	log.Printf("Set catalogue: len %d", len(catalogue))
 	// Записываем обратно
 	err = cache.Set(ID, data)
 	return err

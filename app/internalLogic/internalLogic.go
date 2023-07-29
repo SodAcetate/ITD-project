@@ -2,6 +2,7 @@ package internallogic
 
 import (
 	"fmt"
+	"log"
 	cachehandler "main/app/cacheHandler"
 	dbhandler "main/app/dbLogic"
 	"main/shared/entry"
@@ -44,28 +45,28 @@ func (core *Core) getUserInfo(ID int64) entry.EntryUser {
 // Удаляет структуру из кеша
 // Возвращает состояние start
 func (core *Core) Cancel(ID int64) (message.Message, string) {
-	msg := message.Message{Text: "Операция отменена", Buttons: []string{"Каталог", "Добавить", "Удалить"}}
-	core.Cache.Clear(ID)
+	msg := message.Message{Text: "Операция отменена", Buttons: []string{"Каталог", "Добавить", "Изменить", "Удалить"}}
 	state := "start"
+
 	return msg, state
 }
 
 // Получить из базы список всех предметов
 // Вернуть сообщение с инфой о всех предметах [id] name - name @contact
 func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
-	text := "Каталог\n"
+	text := "Каталог"
 	state := "cat"
 	catalogue, _ := core.Db.GetAll()
 
 	core.Cache.SetCatalogue(ID, catalogue)
 
-	for _, item := range catalogue {
-		text += fmt.Sprintf("\n[%d] %s - %s @%s", item.ID, item.Name, item.UserInfo.Name, item.UserInfo.Contact)
+	for index, item := range catalogue {
+		text += fmt.Sprintf("\n\n[%d] %s \n%s", index+1, item.Name, item.Desc)
 	}
 
 	var info message.Message
 	info.Text = text
-	info.Buttons = []string{"Назад", "Изменить", "Удалить"}
+	info.Buttons = []string{"Назад", "Добавить", "Изменить", "Удалить"}
 
 	return info, state
 }
@@ -169,13 +170,13 @@ func (core *Core) AddItemPost(ID int64) (message.Message, string) {
 
 	var info message.Message
 	info.Text = "Товар успешно добавлен"
-	info.Buttons = []string{"Каталог", "Добавить", "Удалить"}
+	info.Buttons = []string{"Каталог", "Добавить", "Изменить", "Удалить"}
 
 	return info, state
 }
 
 func (core *Core) RemoveItemInit(ID int64) (message.Message, string) {
-	msg := message.Message{Text: "Удаление пока не работает", Buttons: []string{"Каталог", "Добавить", "Удалить"}}
+	msg := message.Message{Text: "Удаление пока не работает", Buttons: []string{"Каталог", "Добавить", "Изменить", "Удалить"}}
 	state := "start"
 	return msg, state
 }
@@ -190,8 +191,9 @@ func (core *Core) EditItemInit(ID int64) (message.Message, string) {
 
 	buttons := make([]string, len(catalogue)+1)
 	buttons = append(buttons, "Отмена")
-	for _, item := range catalogue {
-		buttons = append(buttons, fmt.Sprintf("%d", item.ID))
+	for index, item := range catalogue {
+		buttons = append(buttons, fmt.Sprintf("%d", index+1))
+		log.Print(item.ID)
 	}
 	msg.Buttons = buttons
 	state := "edit_item_select"
@@ -205,6 +207,10 @@ func (core *Core) EditItemSelect(ID int64, input string) (message.Message, strin
 	index, _ := strconv.Atoi(input)
 
 	catalogue, _ := core.Cache.GetCatalogue(ID)
+	if len(catalogue) == 0 {
+		catalogue, _ = core.Db.GetAll()
+	}
+
 	entry := catalogue[index-1]
 	core.Cache.SetCurrentItem(ID, entry)
 
@@ -298,7 +304,8 @@ func (core *Core) EditItemPost(ID int64) (message.Message, string) {
 
 	var msg message.Message
 	msg.Text = "Товар успешно изменен"
-	msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
+	msg.Buttons = []string{"Каталог", "Добавить", "Изменить", "Удалить"}
+
 	return msg, state
 }
 
@@ -310,8 +317,9 @@ func (core *Core) DeleteItemInit(ID int64) (message.Message, string) {
 
 	buttons := make([]string, len(catalogue)+1)
 	buttons = append(buttons, "Отмена")
-	for _, item := range catalogue {
-		buttons = append(buttons, fmt.Sprintf("%d", item.ID))
+	for index, item := range catalogue {
+		buttons = append(buttons, fmt.Sprintf("%d", index+1))
+		log.Print(item.ID)
 	}
 	msg.Buttons = buttons
 	state := "delete_item_select"
@@ -325,11 +333,16 @@ func (core *Core) DeleteItemSelect(ID int64, input string) (message.Message, str
 	index, _ := strconv.Atoi(input)
 
 	catalogue, _ := core.Cache.GetCatalogue(ID)
+	if len(catalogue) == 0 {
+		catalogue, _ = core.Db.GetAll()
+	}
+
 	entry := catalogue[index-1]
 	core.Db.DeleteItem(entry)
 
 	var msg message.Message
 	msg.Text = "Товар успешно удалён"
-	msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
+	msg.Buttons = []string{"Каталог", "Добавить", "Изменить", "Удалить"}
+
 	return msg, state
 }
