@@ -54,7 +54,14 @@ func (core *Core) Cancel(ID int64) (message.Message, string) {
 func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 	text := "Каталог"
 	state := "cat"
+	var info message.Message
 	catalogue, _ := core.Db.GetAll()
+
+	if len(catalogue) == 0 {
+		info.Text = "Товаров нет! Можете добавить первый"
+		info.Buttons = []string{"Назад", "Добавить"}
+		return info, state
+	}
 
 	log.Printf("Test: " + catalogue[0].UserInfo.Name)
 
@@ -64,7 +71,6 @@ func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 		text += fmt.Sprintf("\n\n[%d] %s \n%s \n%s @%s", index+1, item.Name, item.Desc, item.UserInfo.Name, item.UserInfo.Contact)
 	}
 
-	var info message.Message
 	info.Text = text
 	info.Buttons = []string{"Назад", "Добавить", "Изменить", "Удалить"}
 
