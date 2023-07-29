@@ -40,6 +40,15 @@ func (core *Core) getUserInfo(ID int64) entry.EntryUser {
 	return core.Db.GetPlaceholderUser()
 }
 
+// Удаляет структуру из кеша
+// Возвращает состояние start
+func (core *Core) Cancel(ID int64) (message.Message, string) {
+	msg := message.Message{Text: "Операция отменена", Buttons: []string{"Каталог", "Добавить", "Удалить"}}
+	core.Cache.Clear(ID)
+	state := "start"
+	return msg, state
+}
+
 // Получить из базы список всех предметов
 // Вернуть сообщение с инфой о всех предметах [id] name - name @contact
 func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
@@ -150,14 +159,6 @@ func (core *Core) AddItemDescription(ID int64, input string) (message.Message, s
 	return info, state
 }
 
-// Удаляет структуру из кеша
-// Возвращает состояние start
-func (core *Core) AddItemCancel(ID int64) (message.Message, string) {
-	msg := message.Message{Text: "Добавление отменено", Buttons: []string{"Каталог", "Добавить", "Удалить"}}
-	state := "start"
-	return msg, state
-}
-
 // Вызывает dbcontext.AddItem, передаёт готовую структуру из кеша
 // Возвращает состояние start
 func (core *Core) AddItemPost(ID int64) (message.Message, string) {
@@ -213,6 +214,81 @@ func (core *Core) EditItemSelect(ID int64, input string) (message.Message, strin
 	return msg, state
 }
 
+// Запрашивает у юзера название предмета
+// Возвращает состояние add_item_name
+func (core *Core) AskItemNameEdit(ID int64) (message.Message, string) {
+	state := "edit_item_name"
+	var info message.Message
+	info.Text = "Введите название товара: "
+	info.Buttons = []string{"Отмена"}
+
+	return info, state
+}
+
+// Пишет имя в структуру в кэше
+// Даёт пользователю кнопки: Изменить имя, Изменить описание, Отмена, Готово
+// Возвращает состояние add_item_wait
+func (core *Core) EditItemName(ID int64, input string) (message.Message, string) {
+	var (
+		info  message.Message
+		state string
+	)
+
+	entry, _ := core.Cache.GetCurrentItem(ID)
+
+	if len(input) <= 30 {
+		entry.Name = input
+		core.Cache.SetCurrentItem(ID, entry)
+
+		info.Text = "Имя успешно изменено"
+		info.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
+		state = "edit_item_wait"
+	} else {
+		info.Text = "Сорян, длина названия не больше 30 символов"
+		info.Buttons = []string{"Отмена"}
+		state = "edit_item_name"
+	}
+	return info, state
+}
+
+// Запрашивает у юзера описание
+// Возвращает состояние add_item_desc
+func (core *Core) AskItemDescriptionEdit(ID int64) (message.Message, string) {
+	state := "edit_item_desc"
+	var info message.Message
+	info.Text = "Введите описание товара: "
+	info.Buttons = []string{"Отмена"}
+
+	return info, state
+}
+
+// Пишет описание в структуру в кэше
+// Пока ограничиваю описание в 256 символов
+// Даёт пользователю кнопки: Изменить имя, Изменить описание, Отмена, Готово
+// Возвращает состояние add_item_wait
+func (core *Core) EditItemDescription(ID int64, input string) (message.Message, string) {
+	var (
+		info  message.Message
+		state string
+	)
+
+	entry, _ := core.Cache.GetCurrentItem(ID)
+
+	if len(input) <= 256 {
+		entry.Desc = input
+		core.Cache.SetCurrentItem(ID, entry)
+
+		info.Text = "Описание успешно изменено"
+		info.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
+		state = "edit_item_wait"
+	} else {
+		info.Text = "Сорян, длина описания не больше 256 символов"
+		info.Buttons = []string{"Отмена"}
+		state = "edit_item_desc"
+	}
+	return info, state
+}
+
 func (core *Core) EditItemPost(ID int64) (message.Message, string) {
 	state := "start"
 
@@ -242,10 +318,13 @@ func (core *Core) DeleteItemInit(ID int64) (message.Message, string) {
 	return msg, state
 }
 
-func (core *Core) DeleteItemSelect(ID int64, ItemNum int64) (message.Message, string) {
+func (core *Core) DeleteItemSelect(ID int64, input string) (message.Message, string) {
 	state := "start"
 
-	entry, _ := core.Cache.GetCurrentItem(ID)
+	index, _ := strconv.Atoi(input)
+
+	catalogue, _ := core.Cache.GetCatalogue(ID)
+	entry := catalogue[index-1]
 	core.Db.DeleteItem(entry)
 
 	var msg message.Message

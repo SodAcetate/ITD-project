@@ -75,7 +75,7 @@ func (qHandler *QueryHandler) addItemWaitHandle(update *tgbotapi.Update) (messag
 	case "Изменить описание":
 		msg, new_state = qHandler.Core.AskItemDescription(update.Message.Chat.ID)
 	case "Отмена":
-		msg, new_state = qHandler.Core.AddItemCancel(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
 	case "Готово":
 		msg, new_state = qHandler.Core.AddItemPost(update.Message.Chat.ID)
 	default:
@@ -93,7 +93,7 @@ func (qHandler *QueryHandler) addItemNameHandle(update *tgbotapi.Update) (messag
 	var msg message.Message
 
 	if update.Message.Text == "Отмена" {
-		msg, new_state = qHandler.Core.AddItemCancel(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
 	} else {
 		msg, new_state = qHandler.Core.AddItemName(update.Message.Chat.ID, update.Message.Text)
 	}
@@ -107,7 +107,7 @@ func (qHandler *QueryHandler) addItemDescHandle(update *tgbotapi.Update) (messag
 	var msg message.Message
 
 	if update.Message.Text == "Отмена" {
-		msg, new_state = qHandler.Core.AddItemCancel(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
 	} else {
 		msg, new_state = qHandler.Core.AddItemDescription(update.Message.Chat.ID, update.Message.Text)
 	}
