@@ -8,6 +8,7 @@ import (
 )
 
 var globalItem entry.EntryItem
+var globalCataloge []entry.EntryItem
 
 type Core struct {
 	Db dbhandler.DbHandler
@@ -41,15 +42,15 @@ func (core *Core) getUserInfo(ID int64) entry.EntryUser {
 // Вернуть сообщение с инфой о всех предметах [id] name - name @contact
 func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 	text := "Каталог\n"
-	state := "start"
-	items, _ := core.Db.GetAll()
-	for _, item := range items {
+	state := "cat"
+	globalCataloge, _ := core.Db.GetAll()
+	for _, item := range globalCataloge {
 		text += fmt.Sprintf("\n[%d] %s - %s @%s", item.ID, item.Name, item.UserInfo.Name, item.UserInfo.Contact)
 	}
 
 	var info message.Message
 	info.Text = text
-	info.Buttons = []string{"Каталог", "Добавить", "Удалить"}
+	info.Buttons = []string{"Назад", "Изменить", "Удалить"}
 
 	return info, state
 }
@@ -94,7 +95,7 @@ func (core *Core) AddItemName(ID int64, input string) (message.Message, string) 
 		state = "add_item_wait"
 	} else {
 		info.Text = "Сорян, длина названия не больше 30 символов"
-		info.Buttons = []string{"Отмена"} // может сюда еще отмену добавить?
+		info.Buttons = []string{"Отмена"}
 		state = "add_item_name"
 	}
 	return info, state
@@ -128,7 +129,7 @@ func (core *Core) AddItemDescription(ID int64, input string) (message.Message, s
 		state = "add_item_wait"
 	} else {
 		info.Text = "Сорян, длина описания не больше 256 символов"
-		info.Buttons = []string{"Отмена"} // может сюда еще отмену добавить?
+		info.Buttons = []string{"Отмена"}
 		state = "add_item_desc"
 	}
 	return info, state
@@ -160,3 +161,69 @@ func (core *Core) RemoveItemInit(ID int64) (message.Message, string) {
 	state := "start"
 	return msg, state
 }
+
+// сюда при состоянии edit_item_wait
+// Возвращает кнопку "Отмена" и кнопки для выбора товара для изменения по его ID(ID товара пишется при выборе каталога)
+func (core *Core) EditItemInit(ID int64) (message.Message, string) {
+	var msg message.Message
+	msg.Text = "Выберите предмет для редактирования"
+	butt := make([]string, len(globalCataloge))
+	butt = append(butt, "Отмена")
+	for _, item := range globalCataloge {
+		butt = append(butt, fmt.Sprintf("%d", item.ID))
+	}
+	msg.Buttons = butt
+	state := "edit_item_select"
+	
+	return msg, state
+}
+
+func (core *Core) EditItemSelect(ID int64, itemNum int64) (message.Message, string) {
+	var msg message.Message
+
+	globalItem = globalCataloge[itemNum]
+
+	msg.Text = fmt.Sprintf("Выбрано: %s", globalItem.Name)
+	msg.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
+	state := "edit_item_wait"
+
+	return msg, state
+}
+
+func (core *Core) EditItemPost(ID int64) (message.Message, string) {
+	state := "start"
+
+	core.Db.EditItem(globalItem)
+	
+	var msg message.Message
+	msg.Text = "Товар успешно изменен"
+	msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
+	return msg, state
+}
+
+func (core *Core) DeleteItemInit(ID int64) (message.Message, string) {
+	var msg message.Message
+	msg.Text = "Выберите предмет для удаления"
+	butt := make([]string, len(globalCataloge))
+	butt = append(butt, "Отмена")
+	for _, item := range globalCataloge {
+		butt = append(butt, fmt.Sprintf("%d", item.ID))
+	}
+	msg.Buttons = butt
+	state := "delete_item_select"
+	
+	return msg, state
+}
+
+func (core *Core) DeleteItemSelect(ID int64, ItemNum int64) (message.Message, string) {
+	state := "start"
+
+	core.Db.DeleteItem(globalCataloge[ItemNum])
+	
+	var msg message.Message
+	msg.Text = "Товар успешно удалён"
+	msg.Buttons = []string{"Каталог", "Добавить", "Удалить"}
+	return msg, state
+}
+
+// func (core *Core)
