@@ -36,16 +36,14 @@ func itemToString(entry.EntryItem) string {
 	return ""
 }
 
-// Получить EntryUser
-func (core *Core) getUserInfo(ID int64) entry.EntryUser {
-	user := entry.EntryUser{ID: ID, Contact: "@OneVVTG"}
-	return user
+func (core *Core) AddUser(ID int64, name, contact string) {
+	core.Db.AddUser(entry.EntryUser{ID: ID, State: "start", Name: name, Contact: contact})
 }
 
 // Удаляет структуру из кеша
 // Возвращает состояние start
 func (core *Core) Cancel(ID int64) (message.Message, string) {
-	msg := message.Message{Text: "Операция отменена", Buttons: []string{"Каталог", "Добавить", "Изменить", "Удалить"}}
+	msg := message.Message{Text: "Операция отменена", Buttons: []string{"Каталог"}}
 	state := "start"
 
 	return msg, state
@@ -58,10 +56,12 @@ func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 	state := "cat"
 	catalogue, _ := core.Db.GetAll()
 
+	log.Printf("Test: " + catalogue[0].UserInfo.Name)
+
 	core.Cache.SetCatalogue(ID, catalogue)
 
 	for index, item := range catalogue {
-		text += fmt.Sprintf("\n\n[%d] %s \n%s", index+1, item.Name, item.Desc)
+		text += fmt.Sprintf("\n\n[%d] %s \n%s \n%s @%s", index+1, item.Name, item.Desc, item.UserInfo.Name, item.UserInfo.Contact)
 	}
 
 	var info message.Message
@@ -80,7 +80,7 @@ func (core *Core) AddItemInit(ID int64) (message.Message, string) {
 		state string
 	)
 
-	core.Cache.SetCurrentItem(ID, entry.EntryItem{UserInfo: core.getUserInfo(ID)})
+	core.Cache.SetCurrentItem(ID, entry.EntryItem{UserInfo: core.Db.GetUserInfo(ID)})
 
 	info, state = core.AskItemName(ID)
 	return info, state
@@ -170,13 +170,13 @@ func (core *Core) AddItemPost(ID int64) (message.Message, string) {
 
 	var info message.Message
 	info.Text = "Товар успешно добавлен"
-	info.Buttons = []string{"Каталог", "Добавить", "Изменить", "Удалить"}
+	info.Buttons = []string{"Каталог"}
 
 	return info, state
 }
 
 func (core *Core) RemoveItemInit(ID int64) (message.Message, string) {
-	msg := message.Message{Text: "Удаление пока не работает", Buttons: []string{"Каталог", "Добавить", "Изменить", "Удалить"}}
+	msg := message.Message{Text: "Удаление пока не работает", Buttons: []string{"Каталог"}}
 	state := "start"
 	return msg, state
 }
@@ -207,6 +207,7 @@ func (core *Core) EditItemSelect(ID int64, input string) (message.Message, strin
 	index, _ := strconv.Atoi(input)
 
 	catalogue, _ := core.Cache.GetCatalogue(ID)
+	log.Printf("Длина каталога %d", len(catalogue))
 	if len(catalogue) == 0 {
 		catalogue, _ = core.Db.GetAll()
 	}
@@ -304,7 +305,7 @@ func (core *Core) EditItemPost(ID int64) (message.Message, string) {
 
 	var msg message.Message
 	msg.Text = "Товар успешно изменен"
-	msg.Buttons = []string{"Каталог", "Добавить", "Изменить", "Удалить"}
+	msg.Buttons = []string{"Каталог"}
 
 	return msg, state
 }
@@ -342,7 +343,7 @@ func (core *Core) DeleteItemSelect(ID int64, input string) (message.Message, str
 
 	var msg message.Message
 	msg.Text = "Товар успешно удалён"
-	msg.Buttons = []string{"Каталог", "Добавить", "Изменить", "Удалить"}
+	msg.Buttons = []string{"Каталог"}
 
 	return msg, state
 }

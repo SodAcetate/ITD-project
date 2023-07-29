@@ -9,6 +9,7 @@ type EntryItem struct {
 
 type EntryUser struct {
 	ID      int64
+	State   string
 	Name    string
 	Contact string
 }

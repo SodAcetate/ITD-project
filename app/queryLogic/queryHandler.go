@@ -1,6 +1,7 @@
 package queryhandler
 
 import (
+	"fmt"
 	"log"
 	internallogic "main/app/internalLogic"
 	"main/shared/message"
@@ -57,13 +58,9 @@ func (qHandler *QueryHandler) startHandle(update *tgbotapi.Update) (message.Mess
 	switch update.Message.Text {
 	case "Каталог":
 		msg, new_state = qHandler.Core.GetCatalogue(update.Message.Chat.ID)
-	case "Добавить":
-		msg, new_state = qHandler.Core.AddItemInit(update.Message.Chat.ID)
-	case "Удалить":
-		msg, new_state = qHandler.Core.DeleteItemInit(update.Message.Chat.ID)
 	default:
 		msg.Text = "HelloWorld!"
-		msg.Buttons = []string{"Каталог", "Добавить", "Изменить", "Удалить"}
+		msg.Buttons = []string{"Каталог"}
 		new_state = "start"
 	}
 
@@ -76,13 +73,15 @@ func (qHandler *QueryHandler) catHandle(update *tgbotapi.Update) (message.Messag
 	var new_state string
 
 	switch update.Message.Text {
+	case "Добавить":
+		msg, new_state = qHandler.Core.AddItemInit(update.Message.Chat.ID)
 	case "Изменить":
 		msg, new_state = qHandler.Core.EditItemInit(update.Message.Chat.ID)
 	case "Удалить":
 		msg, new_state = qHandler.Core.DeleteItemInit(update.Message.Chat.ID)
 	default:
 		msg.Text = "HelloWorld!"
-		msg.Buttons = []string{"Каталог", "Добавить", "Изменить", "Удалить"}
+		msg.Buttons = []string{"Каталог"}
 		new_state = "start"
 	}
 
@@ -105,7 +104,7 @@ func (qHandler *QueryHandler) addItemWaitHandle(update *tgbotapi.Update) (messag
 		msg, new_state = qHandler.Core.AddItemPost(update.Message.Chat.ID)
 	default:
 		msg.Text = "HelloWorld!"
-		msg.Buttons = []string{"Каталог", "Добавить", "Изменить", "Удалить"}
+		msg.Buttons = []string{"Каталог"}
 		new_state = "start"
 	}
 
@@ -170,7 +169,7 @@ func (qHandler *QueryHandler) editItemWaitHandle(update *tgbotapi.Update) (messa
 		msg, new_state = qHandler.Core.EditItemPost(update.Message.Chat.ID)
 	default:
 		msg.Text = "HelloWorld!"
-		msg.Buttons = []string{"Каталог", "Добавить", "Изменить", "Удалить"}
+		msg.Buttons = []string{"Каталог"}
 		new_state = "start"
 	}
 
@@ -223,7 +222,12 @@ func (qHandler *QueryHandler) deleteItemSelectHandle(update *tgbotapi.Update) (m
 func (qHandler *QueryHandler) Process(update *tgbotapi.Update) tgbotapi.MessageConfig {
 	// получаем айди юзера и состояние
 	ID := update.Message.Chat.ID
-	state := qHandler.Core.Db.GetUserState(ID)
+	state, err := qHandler.Core.Db.GetUserState(ID)
+	if err != nil {
+		log.Printf("Adding user %s", update.Message.Chat.FirstName)
+		qHandler.Core.AddUser(ID, fmt.Sprintf("%s %s", update.Message.Chat.FirstName, update.Message.Chat.LastName), update.Message.Chat.UserName)
+		state, err = qHandler.Core.Db.GetUserState(ID)
+	}
 	log.Printf("ID %d: state %s", ID, state)
 	// создаём пустой респонс
 	response := tgbotapi.NewMessage(ID, "")

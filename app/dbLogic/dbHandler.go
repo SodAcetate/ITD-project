@@ -16,7 +16,7 @@ type DbHandler struct {
 }
 
 func (db *DbHandler) Init() {
-	//db.Conninfo = "postgresql://postgres:123@localhost:5432/postgres"
+	db.Conninfo = "postgresql://postgres:123@localhost:5432/postgres"
 	con, err := pgx.Connect(context.Background(), db.Conninfo)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "connection to db failed: %v\n", err)
@@ -52,13 +52,23 @@ func (db *DbHandler) GetPlaceholderUser() entry.EntryUser {
 	return placeholderUser
 }
 
-func (db *DbHandler) GetUserState(ID int64) string {
+func (db *DbHandler) GetUserState(ID int64) (string, error) {
 	var state string
 	err := db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT state FROM users WHERE user_id = %d", ID)).Scan(&state)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 	}
-	return state
+	return state, err
+	//return "start"
+}
+
+func (db *DbHandler) GetUserInfo(ID int64) entry.EntryUser {
+	var user entry.EntryUser
+	err := db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT * FROM users WHERE user_id = %d", ID)).Scan(&user.ID, &user.State, &user.Name, &user.Contact)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+	}
+	return user
 	//return "start"
 }
 
@@ -79,9 +89,12 @@ func (db *DbHandler) AddItem(item entry.EntryItem) (entry.EntryItem, error) {
 }
 
 func (db *DbHandler) AddUser(user entry.EntryUser) (entry.EntryUser, error) {
-	row := db.Conn.QueryRow(context.Background(), "INSERT INTO users_table (user_id, username, contacts) VALUES ($1, $2, $3) RETURNING user_id", user.ID, user.Name, user.Contact)
+	row := db.Conn.QueryRow(context.Background(), "INSERT INTO users (user_id, state, username, contacts) VALUES ($1, $2, $3, $4) RETURNING user_id", user.ID, user.State, user.Name, user.Contact)
 	var id int64
 	err := row.Scan(&id)
+	if err != nil {
+		log.Printf("Добавление юзера: %e", err)
+	}
 	return user, err
 }
 
@@ -91,7 +104,7 @@ func (db *DbHandler) EditItem(item entry.EntryItem) error {
 }
 
 func (db *DbHandler) EditUser(item entry.EntryUser) error {
-	_, err := db.Conn.Exec(context.Background(), "Update users_table SET username=$1, contacts=$2 WHERE user_id=$3", item.Name, item.Contact, item.ID)
+	_, err := db.Conn.Exec(context.Background(), "Update users SET username=$1, contacts=$2 WHERE user_id=$3", item.Name, item.Contact, item.ID)
 	return err
 }
 
@@ -109,7 +122,7 @@ func (db *DbHandler) DeleteUser(item entry.EntryUser) error {
 		err := fmt.Errorf("Не указан ID")
 		return err
 	}
-	_, err := db.Conn.Exec(context.Background(), "DELETE FROM users_table WHERE user_id=$1", item.ID)
+	_, err := db.Conn.Exec(context.Background(), "DELETE FROM users WHERE user_id=$1", item.ID)
 	return err
 }
 
@@ -125,6 +138,10 @@ func (db *DbHandler) GetAll() ([]entry.EntryItem, error) {
 		rows.Scan(&item.ID, &item.UserInfo.ID, &item.Name, &item.Desc)
 		items = append(items, item)
 		log.Printf("Added item %s", item.Name)
+	}
+
+	for index := range items {
+		items[index].UserInfo = db.GetUserInfo(items[index].UserInfo.ID)
 	}
 
 	return items, nil
