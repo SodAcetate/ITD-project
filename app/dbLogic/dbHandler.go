@@ -16,7 +16,8 @@ type DbHandler struct {
 }
 
 func (db *DbHandler) Init() {
-	db.Conninfo = "postgresql://postgres:123@localhost:5432/postgres"
+
+	db.Conninfo = os.Getenv("DB_CONN_STRING")
 	con, err := pgx.Connect(context.Background(), db.Conninfo)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "connection to db failed: %v\n", err)
@@ -133,8 +134,44 @@ func (db *DbHandler) GetAll() ([]entry.EntryItem, error) {
 
 	rows, _ := db.Conn.Query(context.Background(), fmt.Sprintf("SELECT * FROM items"))
 	for rows.Next() {
-		//entry, _ := pgx.RowToStructByPos[entry.EntryItem](rows)
-		//items = append(items, entry)
+		rows.Scan(&item.ID, &item.UserInfo.ID, &item.Name, &item.Desc)
+		items = append(items, item)
+		log.Printf("Added item %s", item.Name)
+	}
+
+	for index := range items {
+		items[index].UserInfo = db.GetUserInfo(items[index].UserInfo.ID)
+	}
+
+	return items, nil
+}
+
+func (db *DbHandler) SearchByName(substring string) ([]entry.EntryItem, error) {
+
+	items := make([]entry.EntryItem, 0)
+	item := entry.EntryItem{}
+
+	rows, _ := db.Conn.Query(context.Background(), fmt.Sprintf("SELECT * FROM items WHERE name ILIKE '%%%s%%'", substring))
+	for rows.Next() {
+		rows.Scan(&item.ID, &item.UserInfo.ID, &item.Name, &item.Desc)
+		items = append(items, item)
+		log.Printf("Added item %s", item.Name)
+	}
+
+	for index := range items {
+		items[index].UserInfo = db.GetUserInfo(items[index].UserInfo.ID)
+	}
+
+	return items, nil
+}
+
+func (db *DbHandler) SearchByUser(ID int64) ([]entry.EntryItem, error) {
+
+	items := make([]entry.EntryItem, 0)
+	item := entry.EntryItem{}
+
+	rows, _ := db.Conn.Query(context.Background(), fmt.Sprintf("SELECT * FROM items WHERE user_id = %d", ID))
+	for rows.Next() {
 		rows.Scan(&item.ID, &item.UserInfo.ID, &item.Name, &item.Desc)
 		items = append(items, item)
 		log.Printf("Added item %s", item.Name)
