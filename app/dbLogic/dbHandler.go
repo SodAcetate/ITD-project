@@ -71,7 +71,7 @@ func (db *DbHandler) GetUserInfo(ID int64) entry.EntryUser {
 }
 
 func (db *DbHandler) UpdateUserState(ID int64, new_state string) error {
-	_, err := db.Conn.Exec(context.Background(), fmt.Sprintf("UPDATE users SET state=%s WHERE id=%d", new_state, ID))
+	_, err := db.Conn.Exec(context.Background(), fmt.Sprintf("UPDATE users SET state='%s' WHERE id=%d", new_state, ID))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "UpdateUserState failed: %v\n", err)
 	}

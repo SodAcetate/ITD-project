@@ -58,9 +58,11 @@ func (qHandler *QueryHandler) startHandle(update *tgbotapi.Update) (message.Mess
 	switch update.Message.Text {
 	case "Каталог":
 		msg, new_state = qHandler.Core.GetCatalogue(update.Message.Chat.ID)
+	case "Моё":
+		msg, new_state = qHandler.Core.GetUsersItems(update.Message.Chat.ID)
 	default:
 		msg.Text = "HelloWorld!"
-		msg.Buttons = []string{"Каталог"}
+		msg.Buttons = []string{"Каталог", "Моё"}
 		new_state = "start"
 	}
 

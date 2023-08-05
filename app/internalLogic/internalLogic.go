@@ -36,8 +36,8 @@ func itemToString(entry.EntryItem) string {
 	return ""
 }
 
-func (core *Core) AddUser(ID int64, name, contact string) {
-	core.Db.AddUser(entry.EntryUser{ID: ID, State: "start", Name: name, Contact: contact})
+func (core *Core) AddUser(ID int64, name, username string) {
+	core.Db.AddUser(entry.EntryUser{ID: ID, State: "start", Name: name, Username: username})
 }
 
 // Удаляет структуру из кеша
@@ -68,7 +68,33 @@ func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 	core.Cache.SetCatalogue(ID, catalogue)
 
 	for index, item := range catalogue {
-		text += fmt.Sprintf("\n\n[%d] %s \n%s \n%s @%s", index+1, item.Name, item.Desc, item.UserInfo.Name, item.UserInfo.Contact)
+		text += fmt.Sprintf("\n\n[%d] %s \n%s \n%s @%s", index+1, item.Name, item.Desc, item.UserInfo.Name, item.UserInfo.Username)
+	}
+
+	info.Text = text
+	info.Buttons = []string{"Назад", "Добавить"}
+
+	return info, state
+}
+
+func (core *Core) GetUsersItems(ID int64) (message.Message, string) {
+	text := "Ваши товары:"
+	state := "cat"
+	var info message.Message
+	catalogue, _ := core.Db.SearchByUser(ID)
+
+	if len(catalogue) == 0 {
+		info.Text = "Товаров нет! Можете добавить первый"
+		info.Buttons = []string{"Назад", "Добавить"}
+		return info, state
+	}
+
+	log.Printf("Test: " + catalogue[0].UserInfo.Name)
+
+	core.Cache.SetCatalogue(ID, catalogue)
+
+	for index, item := range catalogue {
+		text += fmt.Sprintf("\n\n[%d] %s \n%s \n%s @%s", index+1, item.Name, item.Desc, item.UserInfo.Name, item.UserInfo.Username)
 	}
 
 	info.Text = text
@@ -193,11 +219,11 @@ func (core *Core) EditItemInit(ID int64) (message.Message, string) {
 	var msg message.Message
 	msg.Text = "Выберите предмет для редактирования"
 
-	catalogue, _ := core.Cache.GetCatalogue(ID)
+	items, _ := core.Cache.GetCatalogue(ID)
 
-	buttons := make([]string, len(catalogue)+1)
+	buttons := make([]string, len(items)+1)
 	buttons = append(buttons, "Отмена")
-	for index, item := range catalogue {
+	for index, item := range items {
 		buttons = append(buttons, fmt.Sprintf("%d", index+1))
 		log.Print(item.ID)
 	}
