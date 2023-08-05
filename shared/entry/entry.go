@@ -5,11 +5,13 @@ type EntryItem struct {
 	Name     string
 	Desc     string
 	UserInfo EntryUser
+	Type     int8
 }
 
 type EntryUser struct {
-	ID      int64
-	State   string
-	Name    string
-	Contact string
+	ID       int64
+	State    string
+	Name     string
+	Username string
+	Contacts string
 }
