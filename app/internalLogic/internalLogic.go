@@ -43,9 +43,14 @@ func (core *Core) AddUser(ID int64, name, username string) {
 // Удаляет структуру из кеша
 // Возвращает состояние start
 func (core *Core) Cancel(ID int64) (message.Message, string) {
-	msg := message.Message{Text: "Операция отменена", Buttons: []string{"Каталог", "Моё"}}
+	msg := message.Message{Text: "Операция отменена", Buttons: []string{"Каталог", "Моё", "Поиск"}}
 	state := "start"
+	return msg, state
+}
 
+func (core *Core) MainMenu(ID int64) (message.Message, string) {
+	msg := message.Message{Text: "Привет! Выбирай действие!", Buttons: []string{"Каталог", "Моё", "Поиск"}}
+	state := "start"
 	return msg, state
 }
 
@@ -60,16 +65,16 @@ func (core *Core) Echo(ID int64, state string) (message.Message, string) {
 func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 	text := "Каталог"
 	state := "cat"
-	var info message.Message
+	var msg message.Message
 	catalogue, _ := core.Db.GetAll()
 
 	if len(catalogue) == 0 {
-		info.Text = "Товаров нет! Можете добавить первый"
-		info.Buttons = []string{"Назад", "Добавить"}
-		return info, state
+		msg.Text = "Товаров нет! Можете добавить первый"
+		msg.Buttons = []string{"Назад", "Добавить"}
+		return msg, state
 	}
 
-	log.Printf("Test: " + catalogue[0].UserInfo.Name)
+	//log.Printf("Test: " + catalogue[0].UserInfo.Name)
 
 	core.Cache.SetCatalogue(ID, catalogue)
 
@@ -103,44 +108,89 @@ func (core *Core) GetUsersItems(ID int64) (message.Message, string) {
 		text += fmt.Sprintf("\n\n[%d] %s \n%s \n%s @%s", index+1, item.Name, item.Desc, item.UserInfo.Name, item.UserInfo.Username)
 	}
 
-	info.Text = text
-	info.Buttons = []string{"Назад", "Добавить", "Изменить", "Удалить"}
+	msg.Text = text
+	msg.Buttons = []string{"Назад", "Поиск"}
 
-	return info, state
+	return msg, state
+}
+
+func (core *Core) LookForInit(ID int64) (message.Message, string) {
+	var (
+		msg   message.Message
+		state string
+	)
+
+	// msg.Text = "Режим поиска по названию"
+	// msg.Buttons = []string{"Отмена"}
+	// state = "ask_item_name"
+
+	msg, state = core.AskItemName(ID, "Поиск по названию.\n", "s")
+
+	return msg, state
 }
 
 // Создаёт пустую структурку EntryItem, пишет её в кэш
 // Вызывает функцию AskItemName
 func (core *Core) AddItemInit(ID int64) (message.Message, string) {
 	var (
-		info message.Message
+		msg message.Message
 		// new_item entry.EntryItem // кеша нет будет глабольная переменная
 		state string
 	)
 
 	core.Cache.SetCurrentItem(ID, entry.EntryItem{UserInfo: core.Db.GetUserInfo(ID)})
 
-	info, state = core.AskItemName(ID)
-	return info, state
+	msg, state = core.AskItemName(ID, "Добавление названия.\n", "a")
+	return msg, state
 }
 
 // Запрашивает у юзера название предмета
 // Возвращает состояние add_item_name
-func (core *Core) AskItemName(ID int64) (message.Message, string) {
-	state := "add_item_name"
-	var info message.Message
-	info.Text = "Введите название товара: "
-	info.Buttons = []string{"Отмена"}
+// 'a' - add, 'e' - edit, 's' - search
+func (core *Core) AskItemName(ID int64, beg_text string, mode string) (message.Message, string) {
+	var (
+		state string
+		msg   message.Message
+	)
+	if mode == "a" {
+		state = "add_item_name"
+	} else if mode == "s" {
+		state = "search_for_name"
+	}
+	msg.Text = beg_text + "Введите название товара: "
+	msg.Buttons = []string{"Отмена"}
 
-	return info, state
+	return msg, state
 }
+
+func (core *Core) SearchItemName(ID int64, substr string) (message.Message, string) {
+	var msg message.Message
+	text := "Найденные товары: \n"
+	msg.Buttons = []string{"Каталог", "Моё", "Поиск"}
+	state := "start"
+
+	items, _ := core.Db.SearchByName(substr)
+
+	if len(items) == 0 {
+		text = "Увы, товаров не найдено"
+	} else {
+		core.Cache.SetCatalogue(ID, items)
+		for index, item := range items {
+			text += fmt.Sprintf("\n\n[%d] %s \n%s \n%s @%s", index+1, item.Name, item.Desc, item.UserInfo.Name, item.UserInfo.Username)
+		}
+	}
+
+	msg.Text = text
+	return msg, state
+}
+
 
 // Пишет имя в структуру в кэше
 // Даёт пользователю кнопки: Изменить имя, Изменить описание, Отмена, Готово
 // Возвращает состояние add_item_wait
 func (core *Core) AddItemName(ID int64, input string) (message.Message, string) {
 	var (
-		info  message.Message
+		msg   message.Message
 		state string
 	)
 
@@ -150,26 +200,26 @@ func (core *Core) AddItemName(ID int64, input string) (message.Message, string) 
 		entry.Name = input
 		core.Cache.SetCurrentItem(ID, entry)
 
-		info.Text = "Имя успешно добавлено"
-		info.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
+		msg.Text = "Имя успешно добавлено"
+		msg.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
 		state = "add_item_wait"
 	} else {
-		info.Text = "Сорян, длина названия не больше 30 символов"
-		info.Buttons = []string{"Отмена"}
+		msg.Text = "Сорян, длина названия не больше 30 символов"
+		msg.Buttons = []string{"Отмена"}
 		state = "add_item_name"
 	}
-	return info, state
+	return msg, state
 }
 
 // Запрашивает у юзера описание
 // Возвращает состояние add_item_desc
 func (core *Core) AskItemDescription(ID int64) (message.Message, string) {
 	state := "add_item_desc"
-	var info message.Message
-	info.Text = "Введите описание товара: "
-	info.Buttons = []string{"Отмена"}
+	var msg message.Message
+	msg.Text = "Введите описание товара: "
+	msg.Buttons = []string{"Отмена"}
 
-	return info, state
+	return msg, state
 }
 
 // Пишет описание в структуру в кэше
@@ -178,7 +228,7 @@ func (core *Core) AskItemDescription(ID int64) (message.Message, string) {
 // Возвращает состояние add_item_wait
 func (core *Core) AddItemDescription(ID int64, input string) (message.Message, string) {
 	var (
-		info  message.Message
+		msg   message.Message
 		state string
 	)
 
@@ -188,15 +238,15 @@ func (core *Core) AddItemDescription(ID int64, input string) (message.Message, s
 		entry.Desc = input
 		core.Cache.SetCurrentItem(ID, entry)
 
-		info.Text = "Описание успешно добавлено"
-		info.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
+		msg.Text = "Описание успешно добавлено"
+		msg.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
 		state = "add_item_wait"
 	} else {
-		info.Text = "Сорян, длина описания не больше 256 символов"
-		info.Buttons = []string{"Отмена"}
+		msg.Text = "Сорян, длина описания не больше 256 символов"
+		msg.Buttons = []string{"Отмена"}
 		state = "add_item_desc"
 	}
-	return info, state
+	return msg, state
 }
 
 // Вызывает dbcontext.AddItem, передаёт готовую структуру из кеша
@@ -206,11 +256,22 @@ func (core *Core) AddItemPost(ID int64) (message.Message, string) {
 	entry, _ := core.Cache.GetCurrentItem(ID)
 	core.Db.AddItem(entry)
 
-	var info message.Message
-	info.Text = "Товар успешно добавлен"
-	info.Buttons = []string{"Каталог", "Моё"}
+	var msg message.Message
+	msg.Text = "Товар успешно добавлен"
+	msg.Buttons = []string{"Каталог"}
 
-	return info, state
+
+	return msg, state
+}
+
+func (core *Core) RemoveItemInit(ID int64) (message.Message, string) {
+	msg := message.Message{Text: "Удаление пока не работает", Buttons: []string{"Каталог"}}
+	state := "start"
+	return msg, state
+}
+
+// Поиск по чему? По названию? Тогда через AskItemName. Пропишу чутка позже
+func (core *Core) LookForItem(ID int64) (message.Message, string) {
 }
 
 // сюда при состоянии edit_item_wait
@@ -255,22 +316,22 @@ func (core *Core) EditItemSelect(ID int64, input string) (message.Message, strin
 }
 
 // Запрашивает у юзера название предмета
-// Возвращает состояние add_item_name
+// Возвращает состояние edit_item_name
 func (core *Core) AskItemNameEdit(ID int64) (message.Message, string) {
 	state := "edit_item_name"
-	var info message.Message
-	info.Text = "Введите название товара: "
-	info.Buttons = []string{"Отмена"}
+	var msg message.Message
+	msg.Text = "Введите название товара: "
+	msg.Buttons = []string{"Отмена"}
 
-	return info, state
+	return msg, state
 }
 
 // Пишет имя в структуру в кэше
 // Даёт пользователю кнопки: Изменить имя, Изменить описание, Отмена, Готово
-// Возвращает состояние add_item_wait
+// Возвращает состояние edit_item_wait
 func (core *Core) EditItemName(ID int64, input string) (message.Message, string) {
 	var (
-		info  message.Message
+		msg   message.Message
 		state string
 	)
 
@@ -280,26 +341,26 @@ func (core *Core) EditItemName(ID int64, input string) (message.Message, string)
 		entry.Name = input
 		core.Cache.SetCurrentItem(ID, entry)
 
-		info.Text = "Имя успешно изменено"
-		info.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
+		msg.Text = "Имя успешно изменено"
+		msg.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
 		state = "edit_item_wait"
 	} else {
-		info.Text = "Сорян, длина названия не больше 30 символов"
-		info.Buttons = []string{"Отмена"}
+		msg.Text = "Сорян, длина названия не больше 30 символов"
+		msg.Buttons = []string{"Отмена"}
 		state = "edit_item_name"
 	}
-	return info, state
+	return msg, state
 }
 
 // Запрашивает у юзера описание
-// Возвращает состояние add_item_desc
+// Возвращает состояние edit_item_desc
 func (core *Core) AskItemDescriptionEdit(ID int64) (message.Message, string) {
 	state := "edit_item_desc"
-	var info message.Message
-	info.Text = "Введите описание товара: "
-	info.Buttons = []string{"Отмена"}
+	var msg message.Message
+	msg.Text = "Введите описание товара: "
+	msg.Buttons = []string{"Отмена"}
 
-	return info, state
+	return msg, state
 }
 
 // Пишет описание в структуру в кэше
@@ -308,7 +369,7 @@ func (core *Core) AskItemDescriptionEdit(ID int64) (message.Message, string) {
 // Возвращает состояние add_item_wait
 func (core *Core) EditItemDescription(ID int64, input string) (message.Message, string) {
 	var (
-		info  message.Message
+		msg   message.Message
 		state string
 	)
 
@@ -318,15 +379,15 @@ func (core *Core) EditItemDescription(ID int64, input string) (message.Message, 
 		entry.Desc = input
 		core.Cache.SetCurrentItem(ID, entry)
 
-		info.Text = "Описание успешно изменено"
-		info.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
+		msg.Text = "Описание успешно изменено"
+		msg.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
 		state = "edit_item_wait"
 	} else {
-		info.Text = "Сорян, длина описания не больше 256 символов"
-		info.Buttons = []string{"Отмена"}
+		msg.Text = "Сорян, длина описания не больше 256 символов"
+		msg.Buttons = []string{"Отмена"}
 		state = "edit_item_desc"
 	}
-	return info, state
+	return msg, state
 }
 
 func (core *Core) EditItemPost(ID int64) (message.Message, string) {
@@ -376,6 +437,16 @@ func (core *Core) DeleteItemSelect(ID int64, input string) (message.Message, str
 	var msg message.Message
 	msg.Text = "Товар успешно удалён"
 	msg.Buttons = []string{"Каталог", "Моё"}
+
+	return msg, state
+}
+
+func (core *Core) StartMenu(ID int64, input string) (message.Message, string) {
+	state := "start"
+
+	var msg message.Message
+	msg.Text = "Выберите действие"
+	msg.Buttons = []string{"Каталог", "Моё", "Поиск"}
 
 	return msg, state
 }
