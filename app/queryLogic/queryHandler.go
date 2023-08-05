@@ -27,6 +27,8 @@ func (qHandler *QueryHandler) Init() {
 		"edit_item_desc":     qHandler.editItemDescHandle,
 		"delete_item_select": qHandler.deleteItemSelectHandle,
 		"cat":                qHandler.catHandle,
+		"search_name":        qHandler.searchHandler,
+		"cat_my":             qHandler.CatMyHandle,
 	}
 }
 
@@ -66,8 +68,10 @@ func (qHandler *QueryHandler) startHandle(update *tgbotapi.Update) (message.Mess
 		msg, new_state = qHandler.Core.GetCatalogue(update.Message.Chat.ID)
 	case "Моё":
 		msg, new_state = qHandler.Core.GetUsersItems(update.Message.Chat.ID)
+	case "Поиск":
+		msg, new_state = qHandler.Core.SearchInit(update.Message.Chat.ID)
 	default:
-		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "start")
+		msg, new_state = qHandler.Core.Start(update.Message.Chat.ID)
 	}
 
 	return msg, new_state
@@ -81,12 +85,47 @@ func (qHandler *QueryHandler) catHandle(update *tgbotapi.Update) (message.Messag
 	switch update.Message.Text {
 	case "Добавить":
 		msg, new_state = qHandler.Core.AddItemInit(update.Message.Chat.ID)
+	case "Поиск":
+		msg, new_state = qHandler.Core.SearchInit(update.Message.Chat.ID)
+	case "Назад":
+		msg, new_state = qHandler.Core.Start(update.Message.Chat.ID)
+	default:
+		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "cat")
+	}
+
+	return msg, new_state
+}
+
+func (qHandler *QueryHandler) CatMyHandle(update *tgbotapi.Update) (message.Message, string) {
+	var msg message.Message
+	var new_state string
+
+	switch update.Message.Text {
+	case "Добавить":
+		msg, new_state = qHandler.Core.AddItemInit(update.Message.Chat.ID)
 	case "Изменить":
 		msg, new_state = qHandler.Core.EditItemInit(update.Message.Chat.ID)
 	case "Удалить":
 		msg, new_state = qHandler.Core.DeleteItemInit(update.Message.Chat.ID)
+	case "Назад":
+		msg, new_state = qHandler.Core.Start(update.Message.Chat.ID)
 	default:
-		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "start")
+		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "cat")
+	}
+
+	return msg, new_state
+}
+
+// Каталог
+func (qHandler *QueryHandler) searchHandler(update *tgbotapi.Update) (message.Message, string) {
+	var msg message.Message
+	var new_state string
+
+	switch update.Message.Text {
+	case "Отмена":
+		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
+	default:
+		msg, new_state = qHandler.Core.SearchName(update.Message.Chat.ID, update.Message.Text)
 	}
 
 	return msg, new_state
@@ -99,7 +138,7 @@ func (qHandler *QueryHandler) addItemWaitHandle(update *tgbotapi.Update) (messag
 
 	switch update.Message.Text {
 	case "Изменить имя":
-		msg, new_state = qHandler.Core.AskItemName(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.AskItemName(update.Message.Chat.ID, "add_item_wait")
 	case "Изменить описание":
 		msg, new_state = qHandler.Core.AskItemDescription(update.Message.Chat.ID)
 	case "Отмена":
