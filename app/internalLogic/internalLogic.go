@@ -43,9 +43,14 @@ func (core *Core) AddUser(ID int64, name, username string) {
 // Удаляет структуру из кеша
 // Возвращает состояние start
 func (core *Core) Cancel(ID int64) (message.Message, string) {
-	msg := message.Message{Text: "Операция отменена", Buttons: []string{"Каталог"}}
+	msg := message.Message{Text: "Операция отменена", Buttons: []string{"Каталог", "Моё"}}
 	state := "start"
 
+	return msg, state
+}
+
+func (core *Core) Echo(ID int64, state string) (message.Message, string) {
+	msg := message.Message{}
 	return msg, state
 }
 
@@ -202,15 +207,9 @@ func (core *Core) AddItemPost(ID int64) (message.Message, string) {
 
 	var info message.Message
 	info.Text = "Товар успешно добавлен"
-	info.Buttons = []string{"Каталог"}
+	info.Buttons = []string{"Каталог", "Моё"}
 
 	return info, state
-}
-
-func (core *Core) RemoveItemInit(ID int64) (message.Message, string) {
-	msg := message.Message{Text: "Удаление пока не работает", Buttons: []string{"Каталог"}}
-	state := "start"
-	return msg, state
 }
 
 // сюда при состоянии edit_item_wait
@@ -337,7 +336,7 @@ func (core *Core) EditItemPost(ID int64) (message.Message, string) {
 
 	var msg message.Message
 	msg.Text = "Товар успешно изменен"
-	msg.Buttons = []string{"Каталог"}
+	msg.Buttons = []string{"Каталог", "Моё"}
 
 	return msg, state
 }
@@ -375,7 +374,7 @@ func (core *Core) DeleteItemSelect(ID int64, input string) (message.Message, str
 
 	var msg message.Message
 	msg.Text = "Товар успешно удалён"
-	msg.Buttons = []string{"Каталог"}
+	msg.Buttons = []string{"Каталог", "Моё"}
 
 	return msg, state
 }
