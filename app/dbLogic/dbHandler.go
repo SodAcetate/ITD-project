@@ -35,112 +35,134 @@ func (db *DbHandler) Deinit() {
 // Исключение -- логика работы с состояниями
 
 // сгенерить предмет-заглушку
-func (db *DbHandler) GetPlaceholderItem() entry.EntryItem {
-	var placeholderItem entry.EntryItem
-	placeholderItem.ID = 1
-	placeholderItem.Name = "PlaceholderItem"
-	placeholderItem.UserInfo = db.GetPlaceholderUser()
-	return placeholderItem
-}
+// func (db *DbHandler) GetPlaceholderItem() entry.EntryItem {
+// 	var placeholderItem entry.EntryItem
+// 	placeholderItem.ID = 1
+// 	placeholderItem.Name = "PlaceholderItem"
+// 	placeholderItem.UserInfo = db.GetPlaceholderUser()
+// 	return placeholderItem
+// }
 
-// сгенерить юзера-заглушку
-func (db *DbHandler) GetPlaceholderUser() entry.EntryUser {
-	var placeholderUser entry.EntryUser
-	placeholderUser.ID = 1
-	placeholderUser.Name = ""
-	placeholderUser.Contact = "dorm_market_bot"
-	return placeholderUser
-}
+// // сгенерить юзера-заглушку
+// func (db *DbHandler) GetPlaceholderUser() entry.EntryUser {
+// 	var placeholderUser entry.EntryUser
+// 	placeholderUser.ID = 1
+// 	placeholderUser.Name = ""
+// 	placeholderUser.Contact = "dorm_market_bot"
+// 	return placeholderUser
+// }
 
 func (db *DbHandler) GetUserState(ID int64) (string, error) {
 	var state string
-	err := db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT state FROM users WHERE user_id = %d", ID)).Scan(&state)
+	err := db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT state FROM users WHERE id = %d", ID)).Scan(&state)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "GetUserState failed: %v\n", err)
 	}
 	return state, err
-	//return "start"
 }
 
 func (db *DbHandler) GetUserInfo(ID int64) entry.EntryUser {
 	var user entry.EntryUser
-	err := db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT * FROM users WHERE user_id = %d", ID)).Scan(&user.ID, &user.State, &user.Name, &user.Contact)
+	err := db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT * FROM users WHERE id = %d", ID)).Scan(&user.ID, &user.State, &user.Name, &user.Username, &user.Contacts)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "GetUserInfo failed: %v\n", err)
 	}
 	return user
-	//return "start"
 }
 
 func (db *DbHandler) UpdateUserState(ID int64, new_state string) error {
-	_, err := db.Conn.Exec(context.Background(), "UPDATE users SET state=$1 WHERE user_id=$2", new_state, ID)
+	_, err := db.Conn.Exec(context.Background(), fmt.Sprintf("UPDATE users SET state='%s' WHERE id=%d", new_state, ID))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "UpdateUserState failed: %v\n", err)
+	}
 	return err
 }
 
 func (db *DbHandler) AddItem(item entry.EntryItem) (entry.EntryItem, error) {
 	log.Println(fmt.Sprintf("%d : Adding item", item.UserInfo.ID))
-	row := db.Conn.QueryRow(context.Background(), "INSERT INTO items (name, user_id, description) VALUES ($1, $2, $3) RETURNING ID", item.Name, item.UserInfo.ID, item.Desc)
+	row := db.Conn.QueryRow(context.Background(), "INSERT INTO items (user_id, name, description, type) VALUES ($1, $2, $3, $4) RETURNING ID", item.UserInfo.ID, item.Name, item.Desc, item.Type)
 	var id int64
 	err := row.Scan(&id)
 	item.ID = id
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "AddItem failed: %v\n", err)
+	}
 	return item, err
-	//здесь должно быть добавление юзера если по user_id нет данных в таблице users
-	//err = db.conn.QueryRow(context.Background(), "SELECT state FROM users WHERE user_id = $1", ID).Scan(&state)
 }
 
-func (db *DbHandler) AddUser(user entry.EntryUser) (entry.EntryUser, error) {
-	row := db.Conn.QueryRow(context.Background(), "INSERT INTO users (user_id, state, username, contacts) VALUES ($1, $2, $3, $4) RETURNING user_id", user.ID, user.State, user.Name, user.Contact)
+func (db *DbHandler) AddUser(user entry.EntryUser) error {
+	row := db.Conn.QueryRow(context.Background(), "INSERT INTO users (id, state, name, username, contacts) VALUES ($1, $2, $3, $4, $5)", user.ID, user.State, user.Name, user.Username, user.Contacts)
 	var id int64
 	err := row.Scan(&id)
 	if err != nil {
-		log.Printf("Добавление юзера: %e", err)
+		fmt.Fprintf(os.Stderr, "AddUser failed: %v\n", err)
 	}
-	return user, err
+	return err
 }
 
 func (db *DbHandler) EditItem(item entry.EntryItem) error {
-	_, err := db.Conn.Exec(context.Background(), "Update items SET user_id=$1, name=$2, description=$3 WHERE id=$4", item.UserInfo.ID, item.Name, item.Desc, item.ID)
+	_, err := db.Conn.Exec(context.Background(), "Update items SET user_id=$1, name=$2, description=$3, type=$4 WHERE id=$5", item.UserInfo.ID, item.Name, item.Desc, item.Type, item.ID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "EditItem failed: %v\n", err)
+	}
 	return err
 }
 
 func (db *DbHandler) EditUser(item entry.EntryUser) error {
-	_, err := db.Conn.Exec(context.Background(), "Update users SET username=$1, contacts=$2 WHERE user_id=$3", item.Name, item.Contact, item.ID)
+	_, err := db.Conn.Exec(context.Background(), "Update users SET name=$1, username=$2, contacts=$3 WHERE id=$4", item.Name, item.Username, item.Contacts, item.ID)
 	return err
 }
 
 func (db *DbHandler) DeleteItem(item entry.EntryItem) error {
-	if item.ID == 0 {
-		err := fmt.Errorf("Не указан ID")
-		return err
-	}
 	_, err := db.Conn.Exec(context.Background(), "DELETE FROM items WHERE id=$1", item.ID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "DeleteItem failed: %v\n", err)
+	}
 	return err
 }
 
 func (db *DbHandler) DeleteUser(item entry.EntryUser) error {
-	if item.ID == 0 {
-		err := fmt.Errorf("Не указан ID")
-		return err
+	_, err := db.Conn.Exec(context.Background(), "DELETE FROM users WHERE id=$1", item.ID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "DeleteUser failed: %v\n", err)
 	}
-	_, err := db.Conn.Exec(context.Background(), "DELETE FROM users WHERE user_id=$1", item.ID)
 	return err
 }
 
 func (db *DbHandler) GetAll() ([]entry.EntryItem, error) {
 
+	request := "SELECT * FROM items"
+	return db.getItems(request)
+
+}
+
+func (db *DbHandler) SearchByName(substring string) ([]entry.EntryItem, error) {
+
+	request := fmt.Sprintf("SELECT * FROM items WHERE name ILIKE '%%%s%%'", substring)
+	return db.getItems(request)
+
+}
+
+func (db *DbHandler) SearchByUser(ID int64) ([]entry.EntryItem, error) {
+
+	request := fmt.Sprintf("SELECT * FROM items WHERE user_id = %d", ID)
+	return db.getItems(request)
+
+}
+
+func (db *DbHandler) getItems(request string) ([]entry.EntryItem, error) {
 	items := make([]entry.EntryItem, 0)
 	item := entry.EntryItem{}
 
-	rows, _ := db.Conn.Query(context.Background(), fmt.Sprintf("SELECT * FROM items"))
+	rows, _ := db.Conn.Query(context.Background(), request)
 	for rows.Next() {
-		//entry, _ := pgx.RowToStructByPos[entry.EntryItem](rows)
-		//items = append(items, entry)
-		rows.Scan(&item.ID, &item.UserInfo.ID, &item.Name, &item.Desc)
+		rows.Scan(&item.ID, &item.UserInfo.ID, &item.Name, &item.Desc, &item.Type)
 		items = append(items, item)
 		log.Printf("Added item %s", item.Name)
 	}
 
 	for index := range items {
+		log.Printf("Asking for UserInfo on ID %d", items[index].UserInfo.ID)
 		items[index].UserInfo = db.GetUserInfo(items[index].UserInfo.ID)
 	}
 

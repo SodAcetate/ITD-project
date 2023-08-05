@@ -40,13 +40,19 @@ func (qHandler *QueryHandler) Deinit() {
 // в бота передаёт сообщение tgbotapi.MessageConfig
 
 func buildMarkup(buttons []string) tgbotapi.ReplyKeyboardMarkup {
-	kb_buttons := []tgbotapi.KeyboardButton{}
-	for _, button := range buttons {
-		kb_buttons = append(kb_buttons, tgbotapi.NewKeyboardButton(button))
+	kb_rows := []([]tgbotapi.KeyboardButton){}
+	kb_row := []tgbotapi.KeyboardButton{}
+	for index, button := range buttons {
+		kb_row = append(kb_row, tgbotapi.NewKeyboardButton(button))
+		log.Printf("buildMarkup: %s", button)
+		if index%3 == 2 || index == len(buttons)-1 {
+			kb_rows = append(kb_rows, kb_row)
+			kb_row = []tgbotapi.KeyboardButton{}
+		}
 	}
-	kb := tgbotapi.NewReplyKeyboard(
-		tgbotapi.NewKeyboardButtonRow(kb_buttons...),
-	)
+
+	kb := tgbotapi.NewReplyKeyboard(kb_rows...)
+
 	return kb
 }
 
@@ -58,10 +64,10 @@ func (qHandler *QueryHandler) startHandle(update *tgbotapi.Update) (message.Mess
 	switch update.Message.Text {
 	case "Каталог":
 		msg, new_state = qHandler.Core.GetCatalogue(update.Message.Chat.ID)
+	case "Моё":
+		msg, new_state = qHandler.Core.GetUsersItems(update.Message.Chat.ID)
 	default:
-		msg.Text = "HelloWorld!"
-		msg.Buttons = []string{"Каталог"}
-		new_state = "start"
+		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "start")
 	}
 
 	return msg, new_state
@@ -80,9 +86,7 @@ func (qHandler *QueryHandler) catHandle(update *tgbotapi.Update) (message.Messag
 	case "Удалить":
 		msg, new_state = qHandler.Core.DeleteItemInit(update.Message.Chat.ID)
 	default:
-		msg.Text = "HelloWorld!"
-		msg.Buttons = []string{"Каталог"}
-		new_state = "start"
+		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "start")
 	}
 
 	return msg, new_state
@@ -103,9 +107,7 @@ func (qHandler *QueryHandler) addItemWaitHandle(update *tgbotapi.Update) (messag
 	case "Готово":
 		msg, new_state = qHandler.Core.AddItemPost(update.Message.Chat.ID)
 	default:
-		msg.Text = "HelloWorld!"
-		msg.Buttons = []string{"Каталог"}
-		new_state = "start"
+		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "add_item_wait")
 	}
 
 	return msg, new_state
@@ -168,9 +170,7 @@ func (qHandler *QueryHandler) editItemWaitHandle(update *tgbotapi.Update) (messa
 	case "Готово":
 		msg, new_state = qHandler.Core.EditItemPost(update.Message.Chat.ID)
 	default:
-		msg.Text = "HelloWorld!"
-		msg.Buttons = []string{"Каталог"}
-		new_state = "start"
+		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "edit_item_wait")
 	}
 
 	return msg, new_state
