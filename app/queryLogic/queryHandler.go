@@ -40,13 +40,19 @@ func (qHandler *QueryHandler) Deinit() {
 // в бота передаёт сообщение tgbotapi.MessageConfig
 
 func buildMarkup(buttons []string) tgbotapi.ReplyKeyboardMarkup {
-	kb_buttons := []tgbotapi.KeyboardButton{}
-	for _, button := range buttons {
-		kb_buttons = append(kb_buttons, tgbotapi.NewKeyboardButton(button))
+	kb_rows := []([]tgbotapi.KeyboardButton){}
+	kb_row := []tgbotapi.KeyboardButton{}
+	for index, button := range buttons {
+		kb_row = append(kb_row, tgbotapi.NewKeyboardButton(button))
+		log.Printf("buildMarkup: %s", button)
+		if index%3 == 2 || index == len(buttons)-1 {
+			kb_rows = append(kb_rows, kb_row)
+			kb_row = []tgbotapi.KeyboardButton{}
+		}
 	}
-	kb := tgbotapi.NewReplyKeyboard(
-		tgbotapi.NewKeyboardButtonRow(kb_buttons...),
-	)
+
+	kb := tgbotapi.NewReplyKeyboard(kb_rows...)
+
 	return kb
 }
 
@@ -80,7 +86,7 @@ func (qHandler *QueryHandler) catHandle(update *tgbotapi.Update) (message.Messag
 	case "Удалить":
 		msg, new_state = qHandler.Core.DeleteItemInit(update.Message.Chat.ID)
 	default:
-		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "cat")
+		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "start")
 	}
 
 	return msg, new_state

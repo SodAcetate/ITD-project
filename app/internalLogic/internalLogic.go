@@ -50,7 +50,8 @@ func (core *Core) Cancel(ID int64) (message.Message, string) {
 }
 
 func (core *Core) Echo(ID int64, state string) (message.Message, string) {
-	msg := message.Message{}
+	msg := message.Message{Text: "Сори чё-то пошло не так", Buttons: []string{"Каталог", "Моё"}}
+	// state = "start"
 	return msg, state
 }
 
@@ -220,11 +221,11 @@ func (core *Core) EditItemInit(ID int64) (message.Message, string) {
 
 	items, _ := core.Cache.GetCatalogue(ID)
 
-	buttons := make([]string, len(items)+1)
+	buttons := []string{}
 	buttons = append(buttons, "Отмена")
 	for index, item := range items {
 		buttons = append(buttons, fmt.Sprintf("%d", index+1))
-		log.Print(item.ID)
+		log.Printf("EditItemInit: %d", item.ID)
 	}
 	msg.Buttons = buttons
 	state := "edit_item_select"
@@ -351,7 +352,7 @@ func (core *Core) DeleteItemInit(ID int64) (message.Message, string) {
 	buttons = append(buttons, "Отмена")
 	for index, item := range catalogue {
 		buttons = append(buttons, fmt.Sprintf("%d", index+1))
-		log.Print(item.ID)
+		log.Printf("DeleteItemInit: %d", item.ID)
 	}
 	msg.Buttons = buttons
 	state := "delete_item_select"
