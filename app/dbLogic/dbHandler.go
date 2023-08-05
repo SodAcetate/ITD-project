@@ -131,55 +131,38 @@ func (db *DbHandler) DeleteUser(item entry.EntryUser) error {
 
 func (db *DbHandler) GetAll() ([]entry.EntryItem, error) {
 
-	items := make([]entry.EntryItem, 0)
-	item := entry.EntryItem{}
+	request := "SELECT * FROM items"
+	return db.getItems(request)
 
-	rows, _ := db.Conn.Query(context.Background(), fmt.Sprintf("SELECT * FROM items"))
-	for rows.Next() {
-		rows.Scan(&item.ID, &item.UserInfo.ID, &item.Name, &item.Desc)
-		items = append(items, item)
-		log.Printf("Added item %s", item.Name)
-	}
-
-	for index := range items {
-		items[index].UserInfo = db.GetUserInfo(items[index].UserInfo.ID)
-	}
-
-	return items, nil
 }
 
 func (db *DbHandler) SearchByName(substring string) ([]entry.EntryItem, error) {
 
-	items := make([]entry.EntryItem, 0)
-	item := entry.EntryItem{}
+	request := fmt.Sprintf("SELECT * FROM items WHERE name ILIKE '%%%s%%'", substring)
+	return db.getItems(request)
 
-	rows, _ := db.Conn.Query(context.Background(), "SELECT * FROM items WHERE name ILIKE $1", fmt.Sprintf("%%%s%%", substring))
-	for rows.Next() {
-		rows.Scan(&item.ID, &item.UserInfo.ID, &item.Name, &item.Desc)
-		items = append(items, item)
-		log.Printf("Added item %s", item.Name)
-	}
-
-	for index := range items {
-		items[index].UserInfo = db.GetUserInfo(items[index].UserInfo.ID)
-	}
-
-	return items, nil
 }
 
 func (db *DbHandler) SearchByUser(ID int64) ([]entry.EntryItem, error) {
 
+	request := fmt.Sprintf("SELECT * FROM items WHERE user_id = %d", ID)
+	return db.getItems(request)
+
+}
+
+func (db *DbHandler) getItems(request string) ([]entry.EntryItem, error) {
 	items := make([]entry.EntryItem, 0)
 	item := entry.EntryItem{}
 
-	rows, _ := db.Conn.Query(context.Background(), fmt.Sprintf("SELECT * FROM items WHERE user_id = %d", ID))
+	rows, _ := db.Conn.Query(context.Background(), request)
 	for rows.Next() {
-		rows.Scan(&item.ID, &item.UserInfo.ID, &item.Name, &item.Desc)
+		rows.Scan(&item.ID, &item.UserInfo.ID, &item.Name, &item.Desc, &item.Type)
 		items = append(items, item)
 		log.Printf("Added item %s", item.Name)
 	}
 
 	for index := range items {
+		log.Printf("Asking for UserInfo on ID %d", items[index].UserInfo.ID)
 		items[index].UserInfo = db.GetUserInfo(items[index].UserInfo.ID)
 	}
 
