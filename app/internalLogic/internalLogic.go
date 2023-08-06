@@ -74,8 +74,6 @@ func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 		return msg, state
 	}
 
-	//log.Printf("Test: " + catalogue[0].UserInfo.Name)
-
 	core.Cache.SetCatalogue(ID, catalogue)
 
 	for index, item := range catalogue {
@@ -83,16 +81,20 @@ func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 	}
 
 	msg.Text = text
-	msg.Buttons = []string{"Назад", "Поиск"}
+	msg.Buttons = []string{"Назад"}
 
 	return msg, state
 }
 
-// Поиск по чему? По названию? Тогда через AskItemName. Пропишу чутка позже
+
+// поиск по вхождению в название
+// запрашивает у юзера подстроку
 func (core *Core) SearchInit(ID int64) (message.Message, string) {
 	return core.AskItemName(ID, "search")
 }
 
+// получает повары с подстрокой, пишет их в кеш и на экран
+// возвращает состояние start
 func (core *Core) SearchName(ID int64, input string) (message.Message, string) {
 	var msg message.Message
 	text := "Найденные товары: \n"
@@ -281,13 +283,16 @@ func (core *Core) EditItemInit(ID int64) (message.Message, string) {
 	return msg, state
 }
 
+// вызывает AskItemName для получение нового имени
 func (core *Core) EditItemSelect(ID int64, input string) (message.Message, string) {
 	var msg message.Message
 
 	index, _ := strconv.Atoi(input)
 
 	catalogue, _ := core.Cache.GetCatalogue(ID)
+	
 	log.Printf("Длина каталога %d", len(catalogue))
+
 	if len(catalogue) == 0 {
 		catalogue, _ = core.Db.GetAll()
 	}
@@ -304,12 +309,13 @@ func (core *Core) EditItemSelect(ID int64, input string) (message.Message, strin
 
 // Запрашивает у юзера название предмета
 // Возвращает состояние edit_item_name
-func (core *Core) AskItemNameEdit(ID int64) (message.Message, string) {
-	state := "edit_item_name"
-	var msg message.Message
-	msg.Text = "Введите название товара: "
-	msg.Buttons = []string{"Отмена"}
+func (core *Core) EditNameInit(ID int64) (message.Message, string) {
+	var (
+		msg message.Message
+		state string
+	)
 
+	msg, state = core.AskItemName(ID, "edit_item_name")
 	return msg, state
 }
 
@@ -341,14 +347,13 @@ func (core *Core) EditItemName(ID int64, input string) (message.Message, string)
 
 // Запрашивает у юзера описание
 // Возвращает состояние edit_item_desc
-func (core *Core) AskItemDescriptionEdit(ID int64) (message.Message, string) {
+func (core *Core) EditDescInit(ID int64) (message.Message, string) {
+	msg, _ := core.AskItemDescription(ID)
 	state := "edit_item_desc"
-	var msg message.Message
-	msg.Text = "Введите описание товара: "
-	msg.Buttons = []string{"Отмена"}
-
 	return msg, state
 }
+
+
 
 // Пишет описание в структуру в кэше
 // Пока ограничиваю описание в 256 символов
