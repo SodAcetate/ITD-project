@@ -10,6 +10,18 @@ import (
 	"strconv"
 )
 
+var StateHandler map[string][]string
+
+// инилизиализация обработчика состояний
+func main(){  
+	StateHandler["start"] = []string{"Каталог", "Моё", "Поиск"}
+	StateHandler["cat"] = []string{"Назад", "Поиск"} // Куда лучше поставить поиск?
+	StateHandler["cat_my"] = []string{"Назад", "Добавить", "Изменить", "Удалить"}
+	StateHandler["edit_item"] = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
+
+}
+
+
 type Core struct {
 	Db    dbhandler.DbHandler
 	Cache cachehandler.Cache
@@ -43,20 +55,20 @@ func (core *Core) AddUser(ID int64, name, username string) {
 // Удаляет структуру из кеша
 // Возвращает состояние start
 func (core *Core) Cancel(ID int64) (message.Message, string) {
-	msg := message.Message{Text: "Операция отменена", Buttons: []string{"Каталог", "Моё", "Поиск"}}
 	state := "start"
+	msg := message.Message{Text: "Операция отменена", Buttons: StateHandler[state]}
 	return msg, state
 }
 
 func (core *Core) Start(ID int64) (message.Message, string) {
-	msg := message.Message{Text: "Привет! Выбирай действие!", Buttons: []string{"Каталог", "Моё", "Поиск"}}
 	state := "start"
+	msg := message.Message{Text: "Привет! Выбирай действие!", Buttons: StateHandler[state]}
 	return msg, state
 }
 
 func (core *Core) Echo(ID int64, state string) (message.Message, string) {
-	msg := message.Message{Text: "Сори чё-то пошло не так", Buttons: []string{"Каталог", "Моё"}}
-	// state = "start"
+	state = "start"
+	msg := message.Message{Text: "Сори чё-то пошло не так", Buttons: StateHandler[state]}
 	return msg, state
 }
 
@@ -67,10 +79,11 @@ func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 	state := "cat"
 	var msg message.Message
 	catalogue, _ := core.Db.GetAll()
+	msg.Buttons = StateHandler[state]
 
 	if len(catalogue) == 0 {
 		msg.Text = "Товаров нет! Можете добавить первый"
-		msg.Buttons = []string{"Назад", "Добавить"}
+		// msg.Buttons = []string{"Назад", "Добавить"}
 		return msg, state
 	}
 
@@ -81,7 +94,7 @@ func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 	}
 
 	msg.Text = text
-	msg.Buttons = []string{"Назад"}
+	// msg.Buttons = []string{"Назад"}
 
 	return msg, state
 }
@@ -98,7 +111,7 @@ func (core *Core) SearchInit(ID int64) (message.Message, string) {
 func (core *Core) SearchName(ID int64, input string) (message.Message, string) {
 	var msg message.Message
 	text := "Найденные товары: \n"
-	msg.Buttons = []string{"Каталог", "Моё", "Поиск"}
+
 	state := "start"
 
 	items, _ := core.Db.SearchByName(input)
@@ -113,6 +126,7 @@ func (core *Core) SearchName(ID int64, input string) (message.Message, string) {
 	}
 
 	msg.Text = text
+	msg.Buttons = StateHandler[state]
 	return msg, state
 }
 
@@ -137,7 +151,7 @@ func (core *Core) GetUsersItems(ID int64) (message.Message, string) {
 	}
 
 	msg.Text = text
-	msg.Buttons = []string{"Назад", "Добавить", "Изменить", "Удалить"}
+	msg.Buttons = StateHandler[state]
 
 	return msg, state
 }
@@ -195,7 +209,7 @@ func (core *Core) AddItemName(ID int64, input string) (message.Message, string) 
 		core.Cache.SetCurrentItem(ID, entry)
 
 		msg.Text = "Имя успешно добавлено"
-		msg.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
+		msg.Buttons = StateHandler["edit_item"]
 		state = "add_item_wait"
 	} else {
 		msg.Text = "Сорян, длина названия не больше 30 символов"
@@ -233,7 +247,7 @@ func (core *Core) AddItemDescription(ID int64, input string) (message.Message, s
 		core.Cache.SetCurrentItem(ID, entry)
 
 		msg.Text = "Описание успешно добавлено"
-		msg.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
+		msg.Buttons = StateHandler["edit_item"]
 		state = "add_item_wait"
 	} else {
 		msg.Text = "Сорян, длина описания не больше 256 символов"
@@ -252,14 +266,14 @@ func (core *Core) AddItemPost(ID int64) (message.Message, string) {
 
 	var msg message.Message
 	msg.Text = "Товар успешно добавлен"
-	msg.Buttons = []string{"Каталог"}
+	msg.Buttons = StateHandler[state]
 
 	return msg, state
 }
 
 func (core *Core) RemoveItemInit(ID int64) (message.Message, string) {
-	msg := message.Message{Text: "Удаление пока не работает", Buttons: []string{"Каталог"}}
 	state := "start"
+	msg := message.Message{Text: "Удаление пока не работает", Buttons: StateHandler[state]}
 	return msg, state
 }
 
@@ -301,7 +315,7 @@ func (core *Core) EditItemSelect(ID int64, input string) (message.Message, strin
 	core.Cache.SetCurrentItem(ID, entry)
 
 	msg.Text = fmt.Sprintf("Выбрано: %s", entry.Name)
-	msg.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
+	msg.Buttons = StateHandler["edit_item"]
 	state := "edit_item_wait"
 
 	return msg, state
@@ -335,7 +349,7 @@ func (core *Core) EditItemName(ID int64, input string) (message.Message, string)
 		core.Cache.SetCurrentItem(ID, entry)
 
 		msg.Text = "Имя успешно изменено"
-		msg.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
+		msg.Buttons = StateHandler["edit_item"]
 		state = "edit_item_wait"
 	} else {
 		msg.Text = "Сорян, длина названия не больше 30 символов"
@@ -372,7 +386,7 @@ func (core *Core) EditItemDescription(ID int64, input string) (message.Message, 
 		core.Cache.SetCurrentItem(ID, entry)
 
 		msg.Text = "Описание успешно изменено"
-		msg.Buttons = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
+		msg.Buttons = StateHandler["edit_item"]
 		state = "edit_item_wait"
 	} else {
 		msg.Text = "Сорян, длина описания не больше 256 символов"
@@ -390,7 +404,7 @@ func (core *Core) EditItemPost(ID int64) (message.Message, string) {
 
 	var msg message.Message
 	msg.Text = "Товар успешно изменен"
-	msg.Buttons = []string{"Каталог", "Моё"}
+	msg.Buttons = StateHandler[state]
 
 	return msg, state
 }
@@ -428,7 +442,7 @@ func (core *Core) DeleteItemSelect(ID int64, input string) (message.Message, str
 
 	var msg message.Message
 	msg.Text = "Товар успешно удалён"
-	msg.Buttons = []string{"Каталог", "Моё"}
+	msg.Buttons = StateHandler[state]
 
 	return msg, state
 }
