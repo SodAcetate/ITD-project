@@ -10,35 +10,45 @@ import (
 	"strconv"
 )
 
-
 type Core struct {
-	Db    			dbhandler.DbHandler
-	Cache 			cachehandler.Cache
-	StateHandler 	map[string][]string
+	Db           dbhandler.DbHandler
+	Cache        cachehandler.Cache
+	StateHandler map[string][]string
 }
 
 // Инициализация
 func (core *Core) Init() {
 	core.Db.Init()
 	core.Cache.Init()
-	core.StateHandler["start"] = []string{"Каталог", "Моё", "Поиск"}
-	core.StateHandler["cat"] = []string{"Назад", "Поиск"} // Куда лучше поставить поиск?
-	core.StateHandler["cat_my"] = []string{"Назад", "Добавить", "Изменить", "Удалить"}
-	core.StateHandler["edit_item"] = []string{"Изменить имя", "Изменить описание", "Отмена", "Готово"}
+	core.StateHandler = map[string][]string{
+		"start":     {"Каталог", "Моё", "Поиск"},
+		"cat":       {"Назад", "Поиск"},
+		"cat_my":    {"Назад", "Добавить", "Изменить", "Удалить"},
+		"edit_item": {"Изменить имя", "Изменить описание", "Отмена", "Готово"},
+	}
 }
 
 func (core *Core) Deinit() {
 	core.Db.Deinit()
 	core.Cache.Deinit()
 }
+
 // получает на вход ID юзера и иногда сообщение
 // в dbHandler передаёт объект entry (EntryItem или EntryUser)
 // из dbHandler получает объекты entry и error
 // на выход передаёт объекты message и состояние (srtring)
 
 // Получить текстовое представление предмета
-func itemToString(entry.EntryItem) string {
-	return ""
+func itemToString(item entry.EntryItem) string {
+	return fmt.Sprintf("<b>%s</b>\n%s\n<i>%s @%s</i>\n", item.Name, item.Desc, item.UserInfo.Name, item.UserInfo.Username)
+}
+
+func catalogueToString(catalogue []entry.EntryItem, header string) string {
+	text := header + "\n"
+	for index, item := range catalogue {
+		text += fmt.Sprintf("\n<b>%d.</b> %s", index+1, itemToString(item))
+	}
+	return text
 }
 
 func (core *Core) AddUser(ID int64, name, username string) {
@@ -49,6 +59,7 @@ func (core *Core) AddUser(ID int64, name, username string) {
 // Возвращает состояние start
 func (core *Core) Cancel(ID int64) (message.Message, string) {
 	state := "start"
+	core.Cache.SetCurrentItem(ID, entry.EntryItem{})
 	msg := message.Message{Text: "Операция отменена", Buttons: core.StateHandler[state]}
 	return msg, state
 }
@@ -68,7 +79,6 @@ func (core *Core) Echo(ID int64, state string) (message.Message, string) {
 // Получить из базы список всех предметов
 // Вернуть сообщение с инфой о всех предметах [id] name - name @contact
 func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
-	text := "Каталог"
 	state := "cat"
 	var msg message.Message
 	catalogue, _ := core.Db.GetAll()
@@ -76,22 +86,15 @@ func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 
 	if len(catalogue) == 0 {
 		msg.Text = "Товаров нет! Можете добавить первый"
-		// msg.Buttons = []string{"Назад", "Добавить"}
 		return msg, state
 	}
 
 	core.Cache.SetCatalogue(ID, catalogue)
 
-	for index, item := range catalogue {
-		text += fmt.Sprintf("\n\n[%d] %s \n%s \n%s @%s", index+1, item.Name, item.Desc, item.UserInfo.Name, item.UserInfo.Username)
-	}
-
-	msg.Text = text
-	// msg.Buttons = []string{"Назад"}
+	msg.Text = catalogueToString(catalogue, "Каталог")
 
 	return msg, state
 }
-
 
 // поиск по вхождению в название
 // запрашивает у юзера подстроку
@@ -160,7 +163,7 @@ func (core *Core) AddItemInit(ID int64) (message.Message, string) {
 
 	core.Cache.SetCurrentItem(ID, entry.EntryItem{UserInfo: core.Db.GetUserInfo(ID)})
 
-	msg, state = core.AskItemName(ID, "add_item_wait")
+	msg, state = core.AskItemName(ID, "add")
 	return msg, state
 }
 
@@ -172,9 +175,9 @@ func (core *Core) AskItemName(ID int64, mode string) (message.Message, string) {
 	)
 
 	switch mode {
-	case "add_item_wait":
+	case "add":
 		state = "add_item_name"
-	case "edit_item_wait":
+	case "edit":
 		state = "edit_item_name"
 	case "search":
 		state = "search_name"
@@ -214,9 +217,17 @@ func (core *Core) AddItemName(ID int64, input string) (message.Message, string) 
 
 // Запрашивает у юзера описание
 // Возвращает состояние add_item_desc
-func (core *Core) AskItemDescription(ID int64) (message.Message, string) {
-	state := "add_item_desc"
+func (core *Core) AskItemDescription(ID int64, mode string) (message.Message, string) {
+	var state string
 	var msg message.Message
+
+	switch mode {
+	case "add":
+		state = "add_item_desc"
+	case "edit":
+		state = "edit_item_desc"
+	}
+
 	msg.Text = "Введите описание товара: "
 	msg.Buttons = []string{"Отмена"}
 
@@ -264,12 +275,6 @@ func (core *Core) AddItemPost(ID int64) (message.Message, string) {
 	return msg, state
 }
 
-func (core *Core) RemoveItemInit(ID int64) (message.Message, string) {
-	state := "start"
-	msg := message.Message{Text: "Удаление пока не работает", Buttons: core.StateHandler[state]}
-	return msg, state
-}
-
 // сюда при состоянии edit_item_wait
 // Возвращает кнопку "Отмена" и кнопки для выбора товара для изменения по его ID(ID товара пишется при выборе каталога)
 func (core *Core) EditItemInit(ID int64) (message.Message, string) {
@@ -297,7 +302,7 @@ func (core *Core) EditItemSelect(ID int64, input string) (message.Message, strin
 	index, _ := strconv.Atoi(input)
 
 	catalogue, _ := core.Cache.GetCatalogue(ID)
-	
+
 	log.Printf("Длина каталога %d", len(catalogue))
 
 	if len(catalogue) == 0 {
@@ -311,18 +316,6 @@ func (core *Core) EditItemSelect(ID int64, input string) (message.Message, strin
 	msg.Buttons = core.StateHandler["edit_item"]
 	state := "edit_item_wait"
 
-	return msg, state
-}
-
-// Запрашивает у юзера название предмета
-// Возвращает состояние edit_item_name
-func (core *Core) EditNameInit(ID int64) (message.Message, string) {
-	var (
-		msg message.Message
-		state string
-	)
-
-	msg, state = core.AskItemName(ID, "edit_item_name")
 	return msg, state
 }
 
@@ -351,16 +344,6 @@ func (core *Core) EditItemName(ID int64, input string) (message.Message, string)
 	}
 	return msg, state
 }
-
-// Запрашивает у юзера описание
-// Возвращает состояние edit_item_desc
-func (core *Core) EditDescInit(ID int64) (message.Message, string) {
-	msg, _ := core.AskItemDescription(ID)
-	state := "edit_item_desc"
-	return msg, state
-}
-
-
 
 // Пишет описание в структуру в кэше
 // Пока ограничиваю описание в 256 символов

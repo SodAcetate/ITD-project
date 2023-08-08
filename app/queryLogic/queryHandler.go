@@ -138,9 +138,9 @@ func (qHandler *QueryHandler) addItemWaitHandle(update *tgbotapi.Update) (messag
 
 	switch update.Message.Text {
 	case "Изменить имя":
-		msg, new_state = qHandler.Core.AskItemName(update.Message.Chat.ID, "add_item_wait")
+		msg, new_state = qHandler.Core.AskItemName(update.Message.Chat.ID, "add")
 	case "Изменить описание":
-		msg, new_state = qHandler.Core.AskItemDescription(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.AskItemDescription(update.Message.Chat.ID, "add")
 	case "Отмена":
 		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
 	case "Готово":
@@ -201,9 +201,9 @@ func (qHandler *QueryHandler) editItemWaitHandle(update *tgbotapi.Update) (messa
 
 	switch update.Message.Text {
 	case "Изменить имя":
-		msg, new_state = qHandler.Core.AskItemNameEdit(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.AskItemName(update.Message.Chat.ID, "edit_item_wait")
 	case "Изменить описание":
-		msg, new_state = qHandler.Core.AskItemDescriptionEdit(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.AskItemDescription(update.Message.Chat.ID, "edit_item_wait")
 	case "Отмена":
 		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
 	case "Готово":
@@ -274,6 +274,7 @@ func (qHandler *QueryHandler) Process(update *tgbotapi.Update) tgbotapi.MessageC
 	msg, new_state := qHandler.stateMap[state](update)
 	// конвертим Message -> MessageConfig
 	response.Text = msg.Text
+	response.ParseMode = tgbotapi.ModeHTML
 	response.ReplyMarkup = buildMarkup(msg.Buttons)
 
 	qHandler.Core.Db.UpdateUserState(update.Message.Chat.ID, new_state)
