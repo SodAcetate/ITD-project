@@ -8,6 +8,7 @@ import (
 	"main/shared/entry"
 	"main/shared/message"
 	"strconv"
+	"time"
 )
 
 type Core struct {
@@ -45,6 +46,12 @@ func (core *Core) Deinit() {
 
 // Получить текстовое представление предмета
 func itemToString(item entry.EntryItem) string {
+	// updated := time.Unix(item.Updated, 0)
+	// timeStr := fmt.Sprintf("%d %s", updated.Day(), updated.Month().String())
+	// if updated.Year() != time.Now().Year() {
+	// 	timeStr = timeStr + fmt.Sprintf(" %d", updated.Year()%100)
+	// }
+	// return fmt.Sprintf("<b>%s</b>\n%s\n<i>%s @%s</i>\n<i>%s</i>\n", item.Name, item.Desc, item.UserInfo.Name, item.UserInfo.Username, timeStr)
 	return fmt.Sprintf("<b>%s</b>\n%s\n<i>%s @%s</i>\n", item.Name, item.Desc, item.UserInfo.Name, item.UserInfo.Username)
 }
 
@@ -311,6 +318,7 @@ func (core *Core) ItemPost(ID int64) (message.Message, string) {
 	state := "start"
 
 	entry, _ := core.Cache.GetCurrentItem(ID)
+	entry.Updated = time.Now().Unix()
 
 	if entry.ID == 0 {
 		core.Db.AddItem(entry)

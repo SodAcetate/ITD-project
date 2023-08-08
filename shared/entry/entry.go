@@ -6,6 +6,7 @@ type EntryItem struct {
 	Desc     string
 	UserInfo EntryUser
 	Type     int8
+	Updated  int64
 }
 
 type EntryUser struct {

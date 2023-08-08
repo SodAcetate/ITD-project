@@ -56,7 +56,7 @@ func (db *DbHandler) UpdateUserState(ID int64, new_state string) error {
 
 func (db *DbHandler) AddItem(item entry.EntryItem) (entry.EntryItem, error) {
 	log.Println(fmt.Sprintf("%d : Adding item", item.UserInfo.ID))
-	row := db.Conn.QueryRow(context.Background(), "INSERT INTO items (user_id, name, description, type) VALUES ($1, $2, $3, $4) RETURNING ID", item.UserInfo.ID, item.Name, item.Desc, item.Type)
+	row := db.Conn.QueryRow(context.Background(), "INSERT INTO items (user_id, name, description, type, updated) VALUES ($1, $2, $3, $4, $5) RETURNING ID", item.UserInfo.ID, item.Name, item.Desc, item.Type, item.Updated)
 	var id int64
 	err := row.Scan(&id)
 	item.ID = id
@@ -77,7 +77,7 @@ func (db *DbHandler) AddUser(user entry.EntryUser) error {
 }
 
 func (db *DbHandler) EditItem(item entry.EntryItem) error {
-	_, err := db.Conn.Exec(context.Background(), "Update items SET user_id=$1, name=$2, description=$3, type=$4 WHERE id=$5", item.UserInfo.ID, item.Name, item.Desc, item.Type, item.ID)
+	_, err := db.Conn.Exec(context.Background(), "Update items SET user_id=$1, name=$2, description=$3, type=$4, updated=$5 WHERE id=$6", item.UserInfo.ID, item.Name, item.Desc, item.Type, item.Updated, item.ID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "EditItem failed: %v\n", err)
 	}
@@ -129,10 +129,14 @@ func (db *DbHandler) SearchByUser(ID int64) ([]entry.EntryItem, error) {
 func (db *DbHandler) getItems(request string) ([]entry.EntryItem, error) {
 	items := make([]entry.EntryItem, 0)
 	item := entry.EntryItem{}
+	params := "ORDER BY updated DESC"
 
-	rows, _ := db.Conn.Query(context.Background(), request)
+	rows, _ := db.Conn.Query(context.Background(), request+" "+params)
 	for rows.Next() {
-		rows.Scan(&item.ID, &item.UserInfo.ID, &item.Name, &item.Desc, &item.Type)
+		err := rows.Scan(&item.ID, &item.UserInfo.ID, &item.Name, &item.Desc, &item.Type, &item.Updated)
+		if err != nil {
+			log.Printf("GetAll error: %v", err)
+		}
 		items = append(items, item)
 		log.Printf("Added item %s", item.Name)
 	}
