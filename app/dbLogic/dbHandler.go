@@ -16,7 +16,7 @@ type DbHandler struct {
 }
 
 func (db *DbHandler) Init() {
-	db.Conninfo = "postgresql://postgres:123@localhost:5432/postgres"
+	db.Conninfo = os.Getenv("DB_CONN_STRING")
 	con, err := pgx.Connect(context.Background(), db.Conninfo)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "connection to db failed: %v\n", err)

@@ -314,10 +314,10 @@ func (core *Core) ItemPost(ID int64) (message.Message, string) {
 
 	if entry.ID == 0 {
 		core.Db.AddItem(entry)
-		msg.Text = "Товар успешно добавлен"
+		msg.Text = "Товар успешно добавлен:\n" + itemToString(entry)
 	} else {
 		core.Db.EditItem(entry)
-		msg.Text = "Товар успешно добавлен"
+		msg.Text = "Товар успешно изменён:\n" + itemToString(entry)
 	}
 
 	msg.Buttons = core.MarkupMap[state]
