@@ -18,15 +18,14 @@ func (qHandler *QueryHandler) Init() {
 	qHandler.Core.Init()
 	qHandler.stateMap = map[string]func(*tgbotapi.Update) (message.Message, string){
 		"start":              qHandler.startHandle,
-		"add_item_wait":      qHandler.addItemWaitHandle,
-		"add_item_name":      qHandler.addItemNameHandle,
-		"add_item_desc":      qHandler.addItemDescHandle,
+		"ask_item_name":      qHandler.askItemNameHandle,
+		"ask_item_desc":      qHandler.askItemDescHandle,
 		"edit_item_select":   qHandler.editItemSelectHandle,
-		"edit_item_wait":     qHandler.editItemWaitHandle,
-		"edit_item_name":     qHandler.editItemNameHandle,
-		"edit_item_desc":     qHandler.editItemDescHandle,
+		"edit_item":          qHandler.editItemHandle,
 		"delete_item_select": qHandler.deleteItemSelectHandle,
 		"cat":                qHandler.catHandle,
+		"search":             qHandler.searchHandler,
+		"cat_my":             qHandler.CatMyHandle,
 	}
 }
 
@@ -40,13 +39,19 @@ func (qHandler *QueryHandler) Deinit() {
 // в бота передаёт сообщение tgbotapi.MessageConfig
 
 func buildMarkup(buttons []string) tgbotapi.ReplyKeyboardMarkup {
-	kb_buttons := []tgbotapi.KeyboardButton{}
-	for _, button := range buttons {
-		kb_buttons = append(kb_buttons, tgbotapi.NewKeyboardButton(button))
+	kb_rows := []([]tgbotapi.KeyboardButton){}
+	kb_row := []tgbotapi.KeyboardButton{}
+	for index, button := range buttons {
+		kb_row = append(kb_row, tgbotapi.NewKeyboardButton(button))
+		log.Printf("buildMarkup: %s", button)
+		if index%3 == 2 || index == len(buttons)-1 {
+			kb_rows = append(kb_rows, kb_row)
+			kb_row = []tgbotapi.KeyboardButton{}
+		}
 	}
-	kb := tgbotapi.NewReplyKeyboard(
-		tgbotapi.NewKeyboardButtonRow(kb_buttons...),
-	)
+
+	kb := tgbotapi.NewReplyKeyboard(kb_rows...)
+
 	return kb
 }
 
@@ -58,10 +63,12 @@ func (qHandler *QueryHandler) startHandle(update *tgbotapi.Update) (message.Mess
 	switch update.Message.Text {
 	case "Каталог":
 		msg, new_state = qHandler.Core.GetCatalogue(update.Message.Chat.ID)
+	case "Моё":
+		msg, new_state = qHandler.Core.GetUsersItems(update.Message.Chat.ID)
+	case "Поиск":
+		msg, new_state = qHandler.Core.SearchInit(update.Message.Chat.ID)
 	default:
-		msg.Text = "HelloWorld!"
-		msg.Buttons = []string{"Каталог"}
-		new_state = "start"
+		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "start")
 	}
 
 	return msg, new_state
@@ -73,67 +80,96 @@ func (qHandler *QueryHandler) catHandle(update *tgbotapi.Update) (message.Messag
 	var new_state string
 
 	switch update.Message.Text {
+	case "Поиск":
+		msg, new_state = qHandler.Core.SearchInit(update.Message.Chat.ID)
+	case "Назад":
+		msg, new_state = qHandler.Core.Start(update.Message.Chat.ID)
+	default:
+		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "cat")
+	}
+
+	return msg, new_state
+}
+
+func (qHandler *QueryHandler) CatMyHandle(update *tgbotapi.Update) (message.Message, string) {
+	var msg message.Message
+	var new_state string
+
+	switch update.Message.Text {
 	case "Добавить":
 		msg, new_state = qHandler.Core.AddItemInit(update.Message.Chat.ID)
 	case "Изменить":
-		msg, new_state = qHandler.Core.EditItemInit(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.EditItemSelect(update.Message.Chat.ID)
 	case "Удалить":
-		msg, new_state = qHandler.Core.DeleteItemInit(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.DeleteItemSelect(update.Message.Chat.ID)
+	case "Назад":
+		msg, new_state = qHandler.Core.Start(update.Message.Chat.ID)
 	default:
-		msg.Text = "HelloWorld!"
-		msg.Buttons = []string{"Каталог"}
-		new_state = "start"
+		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "cat")
+	}
+
+	return msg, new_state
+}
+
+// Каталог
+func (qHandler *QueryHandler) searchHandler(update *tgbotapi.Update) (message.Message, string) {
+	var msg message.Message
+	var new_state string
+
+	switch update.Message.Text {
+	case "Отмена":
+		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
+	default:
+		msg, new_state = qHandler.Core.SearchName(update.Message.Chat.ID, update.Message.Text)
 	}
 
 	return msg, new_state
 }
 
 // Добавление предмета [0] -- ожидание команды
-func (qHandler *QueryHandler) addItemWaitHandle(update *tgbotapi.Update) (message.Message, string) {
+func (qHandler *QueryHandler) editItemHandle(update *tgbotapi.Update) (message.Message, string) {
 	var msg message.Message
 	var new_state string
 
 	switch update.Message.Text {
 	case "Изменить имя":
-		msg, new_state = qHandler.Core.AskItemName(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.AskItemName(update.Message.Chat.ID, "add")
 	case "Изменить описание":
-		msg, new_state = qHandler.Core.AskItemDescription(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.AskItemDescription(update.Message.Chat.ID, "add")
 	case "Отмена":
 		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
 	case "Готово":
-		msg, new_state = qHandler.Core.AddItemPost(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.ItemPost(update.Message.Chat.ID)
 	default:
-		msg.Text = "HelloWorld!"
-		msg.Buttons = []string{"Каталог"}
-		new_state = "start"
+		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "add_item_wait")
 	}
 
 	return msg, new_state
 }
 
 // Добавление предмета [1] -- имя
-func (qHandler *QueryHandler) addItemNameHandle(update *tgbotapi.Update) (message.Message, string) {
+func (qHandler *QueryHandler) askItemNameHandle(update *tgbotapi.Update) (message.Message, string) {
 	var new_state string
 	var msg message.Message
 
 	if update.Message.Text == "Отмена" {
 		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
 	} else {
-		msg, new_state = qHandler.Core.AddItemName(update.Message.Chat.ID, update.Message.Text)
+		msg, new_state = qHandler.Core.SetItemName(update.Message.Chat.ID, update.Message.Text)
 	}
 
 	return msg, new_state
 }
 
 // Добавление предмета [2] -- описание
-func (qHandler *QueryHandler) addItemDescHandle(update *tgbotapi.Update) (message.Message, string) {
+func (qHandler *QueryHandler) askItemDescHandle(update *tgbotapi.Update) (message.Message, string) {
 	var new_state string
 	var msg message.Message
 
 	if update.Message.Text == "Отмена" {
 		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
 	} else {
-		msg, new_state = qHandler.Core.AddItemDescription(update.Message.Chat.ID, update.Message.Text)
+		msg, new_state = qHandler.Core.SetItemDescription(update.Message.Chat.ID, update.Message.Text)
 	}
 
 	return msg, new_state
@@ -147,58 +183,7 @@ func (qHandler *QueryHandler) editItemSelectHandle(update *tgbotapi.Update) (mes
 	if update.Message.Text == "Отмена" {
 		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
 	} else {
-		msg, new_state = qHandler.Core.EditItemSelect(update.Message.Chat.ID, update.Message.Text)
-	}
-
-	return msg, new_state
-}
-
-// Изменение предмета [1] -- ожидание команды
-func (qHandler *QueryHandler) editItemWaitHandle(update *tgbotapi.Update) (message.Message, string) {
-	var msg message.Message
-	var new_state string
-
-	switch update.Message.Text {
-	case "Изменить имя":
-		msg, new_state = qHandler.Core.AskItemNameEdit(update.Message.Chat.ID)
-	case "Изменить описание":
-		msg, new_state = qHandler.Core.AskItemDescriptionEdit(update.Message.Chat.ID)
-	case "Отмена":
-		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
-	case "Готово":
-		msg, new_state = qHandler.Core.EditItemPost(update.Message.Chat.ID)
-	default:
-		msg.Text = "HelloWorld!"
-		msg.Buttons = []string{"Каталог"}
-		new_state = "start"
-	}
-
-	return msg, new_state
-}
-
-// Изменение предмета [2] -- имя
-func (qHandler *QueryHandler) editItemNameHandle(update *tgbotapi.Update) (message.Message, string) {
-	var new_state string
-	var msg message.Message
-
-	if update.Message.Text == "Отмена" {
-		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
-	} else {
-		msg, new_state = qHandler.Core.EditItemName(update.Message.Chat.ID, update.Message.Text)
-	}
-
-	return msg, new_state
-}
-
-// Изменение предмета [3] -- описание
-func (qHandler *QueryHandler) editItemDescHandle(update *tgbotapi.Update) (message.Message, string) {
-	var new_state string
-	var msg message.Message
-
-	if update.Message.Text == "Отмена" {
-		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
-	} else {
-		msg, new_state = qHandler.Core.EditItemDescription(update.Message.Chat.ID, update.Message.Text)
+		msg, new_state = qHandler.Core.EditItemInit(update.Message.Chat.ID, update.Message.Text)
 	}
 
 	return msg, new_state
@@ -212,7 +197,7 @@ func (qHandler *QueryHandler) deleteItemSelectHandle(update *tgbotapi.Update) (m
 	if update.Message.Text == "Отмена" {
 		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
 	} else {
-		msg, new_state = qHandler.Core.DeleteItemSelect(update.Message.Chat.ID, update.Message.Text)
+		msg, new_state = qHandler.Core.DeleteItem(update.Message.Chat.ID, update.Message.Text)
 	}
 
 	return msg, new_state
@@ -235,6 +220,7 @@ func (qHandler *QueryHandler) Process(update *tgbotapi.Update) tgbotapi.MessageC
 	msg, new_state := qHandler.stateMap[state](update)
 	// конвертим Message -> MessageConfig
 	response.Text = msg.Text
+	response.ParseMode = tgbotapi.ModeHTML
 	response.ReplyMarkup = buildMarkup(msg.Buttons)
 
 	qHandler.Core.Db.UpdateUserState(update.Message.Chat.ID, new_state)

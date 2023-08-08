@@ -95,7 +95,7 @@ func (cache *Cache) SetCatalogue(ID int64, catalogue []entry.EntryItem) error {
 	// Получаем данные из кеша
 	data, err := cache.Get(ID)
 	if err != nil {
-		log.Println(err)
+		log.Println("SetCatalogue error: " + err.Error())
 		return err
 	}
 	// Меняем состояние
