@@ -120,7 +120,7 @@ func (qHandler *QueryHandler) searchHandler(update *tgbotapi.Update) (message.Me
 	case "Отмена":
 		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
 	default:
-		msg, new_state = qHandler.Core.SearchName(update.Message.Chat.ID, update.Message.Text)
+		msg, new_state = qHandler.Core.Search(update.Message.Chat.ID, update.Message.Text)
 	}
 
 	return msg, new_state

@@ -28,30 +28,6 @@ func (db *DbHandler) Deinit() {
 	db.Conn.Close(context.Background())
 }
 
-// получает на вход объект entry (EntryItem или EntryUser)
-// делает запрос к БД
-// из БД получает какую-то структурку, преобразует её в entry
-// на выход передаёт объекты entry и error
-// Исключение -- логика работы с состояниями
-
-// сгенерить предмет-заглушку
-// func (db *DbHandler) GetPlaceholderItem() entry.EntryItem {
-// 	var placeholderItem entry.EntryItem
-// 	placeholderItem.ID = 1
-// 	placeholderItem.Name = "PlaceholderItem"
-// 	placeholderItem.UserInfo = db.GetPlaceholderUser()
-// 	return placeholderItem
-// }
-
-// // сгенерить юзера-заглушку
-// func (db *DbHandler) GetPlaceholderUser() entry.EntryUser {
-// 	var placeholderUser entry.EntryUser
-// 	placeholderUser.ID = 1
-// 	placeholderUser.Name = ""
-// 	placeholderUser.Contact = "dorm_market_bot"
-// 	return placeholderUser
-// }
-
 func (db *DbHandler) GetUserState(ID int64) (string, error) {
 	var state string
 	err := db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT state FROM users WHERE id = %d", ID)).Scan(&state)
@@ -136,9 +112,9 @@ func (db *DbHandler) GetAll() ([]entry.EntryItem, error) {
 
 }
 
-func (db *DbHandler) SearchByName(substring string) ([]entry.EntryItem, error) {
+func (db *DbHandler) Search(substring string) ([]entry.EntryItem, error) {
 
-	request := fmt.Sprintf("SELECT * FROM items WHERE name ILIKE '%%%s%%'", substring)
+	request := fmt.Sprintf("SELECT * FROM items WHERE name ILIKE '%%%s%%' OR description ILIKE '%%%s%%'", substring, substring)
 	return db.getItems(request)
 
 }

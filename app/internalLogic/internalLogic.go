@@ -119,12 +119,12 @@ func (core *Core) SearchInit(ID int64) (message.Message, string) {
 
 // получает повары с подстрокой, пишет их в кеш и на экран
 // возвращает состояние start
-func (core *Core) SearchName(ID int64, input string) (message.Message, string) {
+func (core *Core) Search(ID int64, input string) (message.Message, string) {
 	var msg message.Message
 	var text string
 	state := "start"
 
-	items, _ := core.Db.SearchByName(input)
+	items, _ := core.Db.Search(input)
 
 	if len(items) == 0 {
 		text = "Увы, товаров не найдено"
