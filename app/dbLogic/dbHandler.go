@@ -107,21 +107,47 @@ func (db *DbHandler) DeleteUser(item entry.EntryUser) error {
 
 func (db *DbHandler) GetAll() ([]entry.EntryItem, error) {
 
-	request := "SELECT * FROM items"
+	request := "SELECT * FROM items ORDER BY updated DESC"
 	return db.getItems(request)
+
+}
+
+func (db *DbHandler) GetFirstPageItems() (items []entry.EntryItem, err error, isLastPage bool) {
+
+	request := fmt.Sprintf("SELECT * FROM items ORDER BY updated DESC FETCH FIRST 10 ROWS ONLY")
+	items, err = db.getItems(request)
+	if len(items) < 10 {
+		isLastPage = true
+		return
+	}
+	isLastPage = false
+	return
+
+}
+
+func (db *DbHandler) GetNextPageItems(idLastItem int) (items []entry.EntryItem, err error, isLastPage bool) {
+
+	request := fmt.Sprintf("SELECT * FROM items WHERE (id) > (%d) ORDER BY updated DESC FETCH FIRST 10 ROWS ONLY", idLastItem)
+	items, err = db.getItems(request)
+	if len(items) < 10 {
+		isLastPage = true
+		return
+	}
+	isLastPage = false
+	return
 
 }
 
 func (db *DbHandler) Search(substring string) ([]entry.EntryItem, error) {
 
-	request := fmt.Sprintf("SELECT * FROM items WHERE name ILIKE '%%%s%%' OR description ILIKE '%%%s%%'", substring, substring)
+	request := fmt.Sprintf("SELECT * FROM items WHERE name ILIKE '%%%s%%' OR description ILIKE '%%%s%%' ORDER BY updated DESC", substring, substring)
 	return db.getItems(request)
 
 }
 
 func (db *DbHandler) SearchByUser(ID int64) ([]entry.EntryItem, error) {
 
-	request := fmt.Sprintf("SELECT * FROM items WHERE user_id = %d", ID)
+	request := fmt.Sprintf("SELECT * FROM items WHERE user_id = %d ORDER BY updated DESC", ID)
 	return db.getItems(request)
 
 }
@@ -129,9 +155,8 @@ func (db *DbHandler) SearchByUser(ID int64) ([]entry.EntryItem, error) {
 func (db *DbHandler) getItems(request string) ([]entry.EntryItem, error) {
 	items := make([]entry.EntryItem, 0)
 	item := entry.EntryItem{}
-	params := "ORDER BY updated DESC"
 
-	rows, _ := db.Conn.Query(context.Background(), request+" "+params)
+	rows, _ := db.Conn.Query(context.Background(), request)
 	for rows.Next() {
 		err := rows.Scan(&item.ID, &item.UserInfo.ID, &item.Name, &item.Desc, &item.Type, &item.Updated)
 		if err != nil {

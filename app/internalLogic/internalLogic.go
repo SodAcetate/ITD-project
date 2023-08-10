@@ -102,7 +102,7 @@ func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 	}
 
 	core.Cache.SetCatalogue(ID, catalogue)
-
+	// функция, которая будет разделять целый каталог на страницы
 	msg.Text = catalogueToString(catalogue, "Каталог")
 	msg.Buttons = core.MarkupMap[state]
 
@@ -137,7 +137,7 @@ func (core *Core) Search(ID int64, input string) (message.Message, string) {
 		text = "Увы, товаров не найдено"
 	} else {
 		core.Cache.SetCatalogue(ID, items)
-		text = catalogueToString(items, "Резеультаты поиска:")
+		text = catalogueToString(items, "Результаты поиска:")
 	}
 
 	msg.Text = text
