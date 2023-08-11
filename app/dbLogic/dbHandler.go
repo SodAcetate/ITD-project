@@ -114,7 +114,7 @@ func (db *DbHandler) GetAll() ([]entry.EntryItem, error) {
 
 func (db *DbHandler) GetFirstPageItems() (items []entry.EntryItem, err error, isLastPage bool) {
 
-	request := fmt.Sprintf("SELECT * FROM items ORDER BY updated DESC FETCH FIRST 10 ROWS ONLY")
+	request := fmt.Sprintf("SELECT * FROM items ORDER BY (updated, id) DESC FETCH FIRST 10 ROWS ONLY")
 	items, err = db.getItems(request)
 	if len(items) < 10 {
 		isLastPage = true
@@ -125,9 +125,9 @@ func (db *DbHandler) GetFirstPageItems() (items []entry.EntryItem, err error, is
 
 }
 
-func (db *DbHandler) GetNextPageItems(idLastItem int) (items []entry.EntryItem, err error, isLastPage bool) {
+func (db *DbHandler) GetNextPageItems(key_id, key_upd int64) (items []entry.EntryItem, err error, isLastPage bool) {
 
-	request := fmt.Sprintf("SELECT * FROM items WHERE (id) > (%d) ORDER BY updated DESC FETCH FIRST 10 ROWS ONLY", idLastItem)
+	request := fmt.Sprintf("SELECT * FROM items WHERE (updated, id) > (%d, %d) ORDER BY (updated, id) FETCH FIRST 10 ROWS ONLY", key_upd, key_id)
 	items, err = db.getItems(request)
 	if len(items) < 10 {
 		isLastPage = true

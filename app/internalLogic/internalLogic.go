@@ -93,7 +93,7 @@ func (core *Core) Echo(ID int64, state string) (message.Message, string) {
 func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 	state := "cat"
 	var msg message.Message
-	catalogue, _ := core.Db.GetAll()
+	catalogue, _, _ := core.Db.GetFirstPageItems()
 
 	if len(catalogue) == 0 {
 		msg.Text = "Товаров нет! Можете добавить первый"
