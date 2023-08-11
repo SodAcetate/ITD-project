@@ -23,10 +23,11 @@ func (core *Core) Init() {
 	core.MarkupMap = map[string][]string{
 		"start":              {"Каталог", "Моё", "Поиск"},
 		"cat":                {"Назад", "Поиск"},
-		"cat_my":             {"Назад", "Добавить", "Изменить", "Удалить"},
+		"cat_my":             {"Назад", "Добавить", "Изменить", "Удалить", "Указать контакты"},
 		"edit_item":          {"Изменить имя", "Изменить описание", "Отмена", "Готово"},
 		"ask_item_name":      {"Отмена"},
 		"ask_item_desc":      {"Отмена"},
+		"ask_contact":        {"Отмена"},
 		"search":             {"Отмена"},
 		"delete_item_select": {"Отмена"},
 		"edit_item_select":   {"Отмена"},
@@ -43,9 +44,17 @@ func (core *Core) Deinit() {
 // из dbHandler получает объекты entry и error
 // на выход передаёт объекты message и состояние (srtring)
 
+func userToString(user entry.EntryUser) string {
+	text := fmt.Sprintf("<i>%s @%s</i>\n", user.Name, user.Username)
+	if user.Contacts != "" {
+		text += fmt.Sprintf("<i>%s</i>\n", user.Contacts)
+	}
+	return text
+}
+
 // Получить текстовое представление предмета
 func itemToString(item entry.EntryItem) string {
-	return fmt.Sprintf("<b>%s</b>\n%s\n<i>%s @%s</i>\n", item.Name, item.Desc, item.UserInfo.Name, item.UserInfo.Username)
+	return fmt.Sprintf("<b>%s</b>\n%s\n%s", item.Name, item.Desc, userToString(item.UserInfo))
 }
 
 func catalogueToString(catalogue []entry.EntryItem, header string) string {
@@ -58,6 +67,10 @@ func catalogueToString(catalogue []entry.EntryItem, header string) string {
 
 func (core *Core) AddUser(ID int64, name, username string) {
 	core.Db.AddUser(entry.EntryUser{ID: ID, State: "start", Name: name, Username: username})
+}
+
+func (core *Core) EditUser(ID int64, name, username string) {
+	core.Db.EditUser(entry.EntryUser{ID: ID, Name: name, Username: username})
 }
 
 // Удаляет структуру из кеша
@@ -358,6 +371,45 @@ func (core *Core) DeleteItem(ID int64, input string) (message.Message, string) {
 
 	var msg message.Message
 	msg.Text = "Товар успешно удалён"
+	msg.Buttons = core.MarkupMap[state]
+
+	return msg, state
+}
+
+func (core *Core) AskContact(ID int64) (message.Message, string) {
+	var state string
+	var msg message.Message
+
+	state = "ask_contact"
+	msg.Text = "Опишите, как с вами можно связаться: "
+	msg.Buttons = core.MarkupMap[state]
+
+	return msg, state
+}
+
+// Пишет имя в структуру в кэше
+// Даёт пользователю кнопки: Изменить имя, Изменить описание, Отмена, Готово
+// Возвращает состояние add_item_wait
+func (core *Core) SetContact(ID int64, input string) (message.Message, string) {
+	var (
+		msg   message.Message
+		state string
+	)
+
+	user := core.Db.GetUserInfo(ID)
+
+	if len(input) <= 512 {
+
+		user.Contacts = input
+		core.Db.EditUser(user)
+		msg.Text = "Контактные данные успешно обновлены: \n" + userToString(user)
+		state = "start"
+
+	} else {
+		msg.Text = "Сорян, не больше 512 символов"
+		state = "ask_contact"
+	}
+
 	msg.Buttons = core.MarkupMap[state]
 
 	return msg, state
