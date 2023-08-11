@@ -82,8 +82,10 @@ func (qHandler *QueryHandler) catHandle(update *tgbotapi.Update) (message.Messag
 	switch update.Message.Text {
 	case "Поиск":
 		msg, new_state = qHandler.Core.SearchInit(update.Message.Chat.ID)
-	case "Назад":
+	case "Выйти":
 		msg, new_state = qHandler.Core.Start(update.Message.Chat.ID)
+	case "Вперёд":
+		msg, new_state = qHandler.Core.GetNextPage(update.Message.Chat.ID)
 	default:
 		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "cat")
 	}
@@ -102,7 +104,7 @@ func (qHandler *QueryHandler) CatMyHandle(update *tgbotapi.Update) (message.Mess
 		msg, new_state = qHandler.Core.EditItemSelect(update.Message.Chat.ID)
 	case "Удалить":
 		msg, new_state = qHandler.Core.DeleteItemSelect(update.Message.Chat.ID)
-	case "Назад":
+	case "Выйти":
 		msg, new_state = qHandler.Core.Start(update.Message.Chat.ID)
 	default:
 		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "cat")

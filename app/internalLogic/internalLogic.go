@@ -23,8 +23,8 @@ func (core *Core) Init() {
 	core.Cache.Init()
 	core.MarkupMap = map[string][]string{
 		"start":              {"Каталог", "Моё", "Поиск"},
-		"cat":                {"Назад", "Поиск"},
-		"cat_my":             {"Назад", "Добавить", "Изменить", "Удалить"},
+		"cat":                {"Выйти", "Поиск"},
+		"cat_my":             {"Выйти", "Добавить", "Изменить", "Удалить"},
 		"edit_item":          {"Изменить имя", "Изменить описание", "Отмена", "Готово"},
 		"ask_item_name":      {"Отмена"},
 		"ask_item_desc":      {"Отмена"},
@@ -93,7 +93,7 @@ func (core *Core) Echo(ID int64, state string) (message.Message, string) {
 func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 	state := "cat"
 	var msg message.Message
-	catalogue, _, _ := core.Db.GetFirstPageItems()
+	catalogue, _, isLastPage := core.Db.GetFirstPageItems()
 
 	if len(catalogue) == 0 {
 		msg.Text = "Товаров нет! Можете добавить первый"
@@ -102,9 +102,34 @@ func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 	}
 
 	core.Cache.SetCatalogue(ID, catalogue)
-	// функция, которая будет разделять целый каталог на страницы
+
 	msg.Text = catalogueToString(catalogue, "Каталог")
 	msg.Buttons = core.MarkupMap[state]
+
+	if isLastPage == false {
+		msg.Buttons = append(msg.Buttons, "Вперёд")
+	}
+
+	return msg, state
+}
+
+func (core *Core) GetNextPage(ID int64) (message.Message, string) {
+	state := "cat"
+	var msg message.Message
+
+	catalogue, _ := core.Cache.GetCatalogue(ID)
+	key := []int64{catalogue[len(catalogue)-1].Updated, catalogue[len(catalogue)-1].ID}
+	log.Println(key)
+
+	catalogue, _, isLastPage := core.Db.GetNextPageItems(key[0], key[1])
+	core.Cache.SetCatalogue(ID, catalogue)
+
+	msg.Text = catalogueToString(catalogue, "Каталог")
+	msg.Buttons = core.MarkupMap[state]
+	msg.Buttons = append(msg.Buttons, "Назад")
+	if isLastPage == false {
+		msg.Buttons = append(msg.Buttons, "Вперёд")
+	}
 
 	return msg, state
 }

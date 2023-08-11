@@ -125,11 +125,18 @@ func (db *DbHandler) GetFirstPageItems() (items []entry.EntryItem, err error, is
 
 }
 
-func (db *DbHandler) GetNextPageItems(key_id, key_upd int64) (items []entry.EntryItem, err error, isLastPage bool) {
+func (db *DbHandler) GetNextPageItems(key_upd, key_id int64) (items []entry.EntryItem, err error, isLastPage bool) {
 
-	request := fmt.Sprintf("SELECT * FROM items WHERE (updated, id) > (%d, %d) ORDER BY (updated, id) FETCH FIRST 10 ROWS ONLY", key_upd, key_id)
+	log.Printf("GetNextPage Keys: %d, %d", key_upd, key_id)
+
+	request := fmt.Sprintf("SELECT * FROM items WHERE (updated, id) < (%d, %d) ORDER BY (updated, id) DESC FETCH FIRST 10 ROWS ONLY", key_upd, key_id)
 	items, err = db.getItems(request)
-	if len(items) < 10 {
+
+	err = db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) < (%d, %d) FETCH FIRST 1 ROWS ONLY",
+		items[len(items)-1].Updated,
+		items[len(items)-1].ID)).Scan()
+
+	if err != nil {
 		isLastPage = true
 		return
 	}
