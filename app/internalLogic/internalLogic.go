@@ -134,6 +134,27 @@ func (core *Core) GetNextPage(ID int64) (message.Message, string) {
 	return msg, state
 }
 
+func (core *Core) GetPrevPage(ID int64) (message.Message, string) {
+	state := "cat"
+	var msg message.Message
+
+	catalogue, _ := core.Cache.GetCatalogue(ID)
+	key := []int64{catalogue[0].Updated, catalogue[0].ID}
+	log.Println(key)
+
+	catalogue, _, isFirstPage := core.Db.GetPrevPageItems(key[0], key[1])
+	core.Cache.SetCatalogue(ID, catalogue)
+
+	msg.Text = catalogueToString(catalogue, "Каталог")
+	msg.Buttons = core.MarkupMap[state]
+	msg.Buttons = append(msg.Buttons, "Вперёд")
+	if isFirstPage == false {
+		msg.Buttons = append(msg.Buttons, "Назад")
+	}
+
+	return msg, state
+}
+
 // поиск по вхождению в название
 // запрашивает у юзера подстроку
 func (core *Core) SearchInit(ID int64) (message.Message, string) {

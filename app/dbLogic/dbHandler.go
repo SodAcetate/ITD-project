@@ -132,15 +132,66 @@ func (db *DbHandler) GetNextPageItems(key_upd, key_id int64) (items []entry.Entr
 	request := fmt.Sprintf("SELECT * FROM items WHERE (updated, id) < (%d, %d) ORDER BY (updated, id) DESC FETCH FIRST 10 ROWS ONLY", key_upd, key_id)
 	items, err = db.getItems(request)
 
-	err = db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) < (%d, %d) FETCH FIRST 1 ROWS ONLY",
-		items[len(items)-1].Updated,
-		items[len(items)-1].ID)).Scan()
+	// err = db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) < (%d, %d) FETCH FIRST 1 ROWS ONLY",
+	// 	items[len(items)-1].Updated,
+	// 	items[len(items)-1].ID)).Scan()
 
-	if err != nil {
+	// if err != nil {
+	// 	isLastPage = true
+	// 	return
+	// }
+
+	//----
+	row, _ := db.Conn.Query(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) < (%d, %d) FETCH FIRST 1 ROWS ONLY",
+		items[len(items)-1].Updated,
+		items[len(items)-1].ID))
+
+	curCountItems := 0
+	for row.Next() {
+		row.Scan(&curCountItems)
+	}
+	if curCountItems == 0 {
 		isLastPage = true
 		return
 	}
+	//----
+
 	isLastPage = false
+	return
+
+}
+
+func (db *DbHandler) GetPrevPageItems(key_upd, key_id int64) (items []entry.EntryItem, err error, isFirstPage bool) {
+
+	log.Printf("GetPrevPage Keys: %d, %d", key_upd, key_id)
+
+	request := fmt.Sprintf("SELECT * FROM (SELECT * FROM items WHERE (updated, id) > (%d, %d) FETCH NEXT 10 ROWS ONLY) AS foo ORDER BY id DESC", key_upd, key_id)
+	items, err = db.getItems(request)
+
+	// err = db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) > (%d, %d) FETCH FIRST 1 ROWS ONLY",
+	// 	items[0].Updated,
+	// 	items[0].ID)).Scan()
+
+	// if err != nil {
+	// 	isFirstPage = true
+	// 	return
+	// }
+
+	//----
+	row, _ := db.Conn.Query(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) > (%d, %d) FETCH FIRST 1 ROWS ONLY",
+		items[0].Updated,
+		items[0].ID))
+	curCountItems := 0
+	for row.Next() {
+		row.Scan(&curCountItems)
+	}
+	if curCountItems == 0 {
+		isFirstPage = true
+		return
+	}
+	//----
+
+	isFirstPage = false
 	return
 
 }

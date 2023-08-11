@@ -86,6 +86,8 @@ func (qHandler *QueryHandler) catHandle(update *tgbotapi.Update) (message.Messag
 		msg, new_state = qHandler.Core.Start(update.Message.Chat.ID)
 	case "Вперёд":
 		msg, new_state = qHandler.Core.GetNextPage(update.Message.Chat.ID)
+	case "Назад":
+		msg, new_state = qHandler.Core.GetPrevPage(update.Message.Chat.ID)
 	default:
 		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "cat")
 	}
