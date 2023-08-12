@@ -98,7 +98,6 @@ func (core *Core) Start(ID int64) (message.Message, string) {
 }
 
 func (core *Core) Echo(ID int64, state string) (message.Message, string) {
-	state = "start"
 	msg := message.Message{Text: "Сори чё-то пошло не так", Buttons: core.MarkupMap[state]}
 	return msg, state
 }
@@ -136,11 +135,11 @@ func (core *Core) CatNextPage(ID int64) (message.Message, string) {
 	key := []int64{catalogue[len(catalogue)-1].Updated, catalogue[len(catalogue)-1].ID}
 	log.Println(key)
 
-	catalogue, err, isLastPage := core.Db.GetCatalogueNextPage(key[0], key[1])
+	catalogue, _, isLastPage := core.Db.GetCatalogueNextPage(key[0], key[1])
 
-	if err != nil {
-		log.Printf("Next Page Error: %v", err)
-		return core.Echo(ID, "cat")
+	if len(catalogue) == 0 {
+		msg, state = core.Echo(ID, "start")
+		return msg, state
 	} else {
 		core.Cache.SetCatalogue(ID, catalogue)
 		msg.Text = catalogueToString(catalogue, "", true)
@@ -162,10 +161,11 @@ func (core *Core) CatPrevPage(ID int64) (message.Message, string) {
 	key := []int64{catalogue[0].Updated, catalogue[0].ID}
 	log.Println(key)
 
-	catalogue, err, isFirstPage := core.Db.GetCataloguePrevPage(key[0], key[1])
+	catalogue, _, isFirstPage := core.Db.GetCataloguePrevPage(key[0], key[1])
 
-	if err != nil {
-		return core.Echo(ID, "cat")
+	if len(catalogue) == 0 {
+		msg, state = core.Echo(ID, "start")
+		return msg, state
 	} else {
 		core.Cache.SetCatalogue(ID, catalogue)
 
@@ -206,7 +206,7 @@ func (core *Core) Search(ID int64, input string) (message.Message, string) {
 	items, err, isLastPage := core.Db.GetSearchFirstPage(input)
 
 	if err != nil {
-		return core.Echo(ID, "cat")
+		return core.Echo(ID, "start")
 	} else if len(items) == 0 {
 		text = "Увы, товаров не найдено"
 	} else {
@@ -233,10 +233,11 @@ func (core *Core) SearchNextPage(ID int64) (message.Message, string) {
 	key := []int64{catalogue[len(catalogue)-1].Updated, catalogue[len(catalogue)-1].ID}
 	log.Println(key)
 
-	items, err, isLastPage := core.Db.GetSearchNextPage(key[0], key[1], input)
+	items, _, isLastPage := core.Db.GetSearchNextPage(key[0], key[1], input)
 
-	if err != nil {
-		return core.Echo(ID, "search")
+	if len(items) == 0 {
+		msg, state = core.Echo(ID, "start")
+		return msg, state
 	} else {
 		core.Cache.SetCatalogue(ID, items)
 		text = catalogueToString(items, "", true)
@@ -262,10 +263,11 @@ func (core *Core) SearchPrevPage(ID int64) (message.Message, string) {
 	key := []int64{catalogue[0].Updated, catalogue[0].ID}
 	log.Println(key)
 
-	items, err, isLastPage := core.Db.GetSearchPrevPage(key[0], key[1], input)
+	items, _, isLastPage := core.Db.GetSearchPrevPage(key[0], key[1], input)
 
-	if err != nil {
-		return core.Echo(ID, "search")
+	if len(items) == 0 {
+		msg, state = core.Echo(ID, "start")
+		return msg, state
 	} else {
 		core.Cache.SetCatalogue(ID, items)
 		text = catalogueToString(items, "", true)

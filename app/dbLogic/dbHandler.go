@@ -170,6 +170,10 @@ func (db *DbHandler) firstPage(params string) ([]entry.EntryItem, error, bool) {
 	}
 	request := fmt.Sprintf("SELECT * FROM items %s ORDER BY (updated, id) DESC FETCH FIRST %d ROWS ONLY", params, db.PageLength)
 	items, err := db.getItems(request)
+	if len(items) == 0 {
+		return items, err, true
+	}
+
 	var isLastPage bool
 
 	var count int8
@@ -193,6 +197,9 @@ func (db *DbHandler) nextPage(key_upd, key_id int64, params string) ([]entry.Ent
 
 	request := fmt.Sprintf("SELECT * FROM items WHERE (updated, id) < (%d, %d) %s ORDER BY (updated, id) DESC FETCH FIRST %d ROWS ONLY", key_upd, key_id, params, db.PageLength)
 	items, err := db.getItems(request)
+	if len(items) == 0 {
+		return items, err, true
+	}
 
 	var count int8
 	err = db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) < (%d, %d) %s FETCH FIRST 1 ROWS ONLY",
@@ -215,6 +222,9 @@ func (db *DbHandler) prevPage(key_upd, key_id int64, params string) ([]entry.Ent
 
 	request := fmt.Sprintf("SELECT * FROM (SELECT * FROM items WHERE (updated, id) > (%d, %d) %s FETCH NEXT %d ROWS ONLY) AS foo ORDER BY id DESC", key_upd, key_id, params, db.PageLength)
 	items, err := db.getItems(request)
+	if len(items) == 0 {
+		return items, err, true
+	}
 
 	var count int8
 	err = db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) > (%d, %d) %s FETCH FIRST 1 ROWS ONLY",

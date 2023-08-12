@@ -113,7 +113,7 @@ func (qHandler *QueryHandler) CatMyHandle(update *tgbotapi.Update) (message.Mess
 	case "Указать контакты":
 		msg, new_state = qHandler.Core.AskContact(update.Message.Chat.ID)
 	default:
-		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "cat")
+		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "cat_my")
 	}
 
 	return msg, new_state
@@ -146,7 +146,7 @@ func (qHandler *QueryHandler) searchHandler(update *tgbotapi.Update) (message.Me
 	case "Назад":
 		msg, new_state = qHandler.Core.SearchPrevPage(update.Message.Chat.ID)
 	default:
-		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "cat")
+		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "search")
 	}
 
 	return msg, new_state
