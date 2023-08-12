@@ -25,8 +25,9 @@ func (qHandler *QueryHandler) Init() {
 		"edit_item":          qHandler.editItemHandle,
 		"delete_item_select": qHandler.deleteItemSelectHandle,
 		"cat":                qHandler.catHandle,
-		"search":             qHandler.searchHandler,
+		"ask_search":         qHandler.askSearchHandler,
 		"cat_my":             qHandler.CatMyHandle,
+		"search":             qHandler.searchHandler,
 	}
 }
 
@@ -83,8 +84,12 @@ func (qHandler *QueryHandler) catHandle(update *tgbotapi.Update) (message.Messag
 	switch update.Message.Text {
 	case "Поиск":
 		msg, new_state = qHandler.Core.SearchInit(update.Message.Chat.ID)
-	case "Назад":
+	case "Выйти":
 		msg, new_state = qHandler.Core.Start(update.Message.Chat.ID)
+	case "Вперёд":
+		msg, new_state = qHandler.Core.CatNextPage(update.Message.Chat.ID)
+	case "Назад":
+		msg, new_state = qHandler.Core.CatPrevPage(update.Message.Chat.ID)
 	default:
 		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "cat")
 	}
@@ -103,19 +108,19 @@ func (qHandler *QueryHandler) CatMyHandle(update *tgbotapi.Update) (message.Mess
 		msg, new_state = qHandler.Core.EditItemSelect(update.Message.Chat.ID)
 	case "Удалить":
 		msg, new_state = qHandler.Core.DeleteItemSelect(update.Message.Chat.ID)
-	case "Назад":
+	case "Выйти":
 		msg, new_state = qHandler.Core.Start(update.Message.Chat.ID)
 	case "Указать контакты":
 		msg, new_state = qHandler.Core.AskContact(update.Message.Chat.ID)
 	default:
-		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "cat")
+		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "cat_my")
 	}
 
 	return msg, new_state
 }
 
 // Каталог
-func (qHandler *QueryHandler) searchHandler(update *tgbotapi.Update) (message.Message, string) {
+func (qHandler *QueryHandler) askSearchHandler(update *tgbotapi.Update) (message.Message, string) {
 	var msg message.Message
 	var new_state string
 
@@ -124,6 +129,24 @@ func (qHandler *QueryHandler) searchHandler(update *tgbotapi.Update) (message.Me
 		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
 	default:
 		msg, new_state = qHandler.Core.Search(update.Message.Chat.ID, update.Message.Text)
+	}
+
+	return msg, new_state
+}
+
+func (qHandler *QueryHandler) searchHandler(update *tgbotapi.Update) (message.Message, string) {
+	var msg message.Message
+	var new_state string
+
+	switch update.Message.Text {
+	case "Выйти":
+		msg, new_state = qHandler.Core.Start(update.Message.Chat.ID)
+	case "Вперёд":
+		msg, new_state = qHandler.Core.SearchNextPage(update.Message.Chat.ID)
+	case "Назад":
+		msg, new_state = qHandler.Core.SearchPrevPage(update.Message.Chat.ID)
+	default:
+		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "search")
 	}
 
 	return msg, new_state
