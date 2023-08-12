@@ -20,6 +20,7 @@ func (qHandler *QueryHandler) Init() {
 		"start":              qHandler.startHandle,
 		"ask_item_name":      qHandler.askItemNameHandle,
 		"ask_item_desc":      qHandler.askItemDescHandle,
+		"ask_contact":        qHandler.AskContactHandle,
 		"edit_item_select":   qHandler.editItemSelectHandle,
 		"edit_item":          qHandler.editItemHandle,
 		"delete_item_select": qHandler.deleteItemSelectHandle,
@@ -109,6 +110,8 @@ func (qHandler *QueryHandler) CatMyHandle(update *tgbotapi.Update) (message.Mess
 		msg, new_state = qHandler.Core.DeleteItemSelect(update.Message.Chat.ID)
 	case "Выйти":
 		msg, new_state = qHandler.Core.Start(update.Message.Chat.ID)
+	case "Указать контакты":
+		msg, new_state = qHandler.Core.AskContact(update.Message.Chat.ID)
 	default:
 		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "cat")
 	}
@@ -193,6 +196,21 @@ func (qHandler *QueryHandler) askItemDescHandle(update *tgbotapi.Update) (messag
 		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
 	} else {
 		msg, new_state = qHandler.Core.SetItemDescription(update.Message.Chat.ID, update.Message.Text)
+	}
+
+	return msg, new_state
+}
+
+func (qHandler *QueryHandler) AskContactHandle(update *tgbotapi.Update) (message.Message, string) {
+	var new_state string
+	var msg message.Message
+
+	qHandler.Core.EditUser(update.Message.Chat.ID, fmt.Sprintf("%s %s", update.Message.Chat.FirstName, update.Message.Chat.LastName), update.Message.Chat.UserName)
+
+	if update.Message.Text == "Отмена" {
+		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
+	} else {
+		msg, new_state = qHandler.Core.SetContact(update.Message.Chat.ID, update.Message.Text)
 	}
 
 	return msg, new_state
