@@ -11,8 +11,9 @@ import (
 )
 
 type DbHandler struct {
-	Conn     pgx.Conn
-	Conninfo string
+	Conn       pgx.Conn
+	Conninfo   string
+	PageLength int
 }
 
 func (db *DbHandler) Init() {
@@ -22,6 +23,7 @@ func (db *DbHandler) Init() {
 		fmt.Fprintf(os.Stderr, "connection to db failed: %v\n", err)
 	}
 	db.Conn = *con
+	db.PageLength = 5
 }
 
 func (db *DbHandler) Deinit() {
@@ -112,94 +114,45 @@ func (db *DbHandler) GetAll() ([]entry.EntryItem, error) {
 
 }
 
-func (db *DbHandler) GetFirstPageItems() (items []entry.EntryItem, err error, isLastPage bool) {
+func (db *DbHandler) GetCatalogueFirstPage() (items []entry.EntryItem, err error, isLastPage bool) {
 
-	request := fmt.Sprintf("SELECT * FROM items ORDER BY (updated, id) DESC FETCH FIRST 10 ROWS ONLY")
-	items, err = db.getItems(request)
-	if len(items) < 10 {
-		isLastPage = true
-		return
-	}
-	isLastPage = false
-	return
+	params := ""
+	return db.firstPage(params)
 
 }
 
-func (db *DbHandler) GetNextPageItems(key_upd, key_id int64) (items []entry.EntryItem, err error, isLastPage bool) {
+func (db *DbHandler) GetCatalogueNextPage(key_upd, key_id int64) (items []entry.EntryItem, err error, isLastPage bool) {
 
-	log.Printf("GetNextPage Keys: %d, %d", key_upd, key_id)
-
-	request := fmt.Sprintf("SELECT * FROM items WHERE (updated, id) < (%d, %d) ORDER BY (updated, id) DESC FETCH FIRST 10 ROWS ONLY", key_upd, key_id)
-	items, err = db.getItems(request)
-
-	// err = db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) < (%d, %d) FETCH FIRST 1 ROWS ONLY",
-	// 	items[len(items)-1].Updated,
-	// 	items[len(items)-1].ID)).Scan()
-
-	// if err != nil {
-	// 	isLastPage = true
-	// 	return
-	// }
-
-	//----
-	row, _ := db.Conn.Query(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) < (%d, %d) FETCH FIRST 1 ROWS ONLY",
-		items[len(items)-1].Updated,
-		items[len(items)-1].ID))
-
-	curCountItems := 0
-	for row.Next() {
-		row.Scan(&curCountItems)
-	}
-	if curCountItems == 0 {
-		isLastPage = true
-		return
-	}
-	//----
-
-	isLastPage = false
-	return
+	params := ""
+	return db.nextPage(key_upd, key_id, params)
 
 }
 
-func (db *DbHandler) GetPrevPageItems(key_upd, key_id int64) (items []entry.EntryItem, err error, isFirstPage bool) {
+func (db *DbHandler) GetCataloguePrevPage(key_upd, key_id int64) (items []entry.EntryItem, err error, isFirstPage bool) {
 
-	log.Printf("GetPrevPage Keys: %d, %d", key_upd, key_id)
-
-	request := fmt.Sprintf("SELECT * FROM (SELECT * FROM items WHERE (updated, id) > (%d, %d) FETCH NEXT 10 ROWS ONLY) AS foo ORDER BY id DESC", key_upd, key_id)
-	items, err = db.getItems(request)
-
-	// err = db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) > (%d, %d) FETCH FIRST 1 ROWS ONLY",
-	// 	items[0].Updated,
-	// 	items[0].ID)).Scan()
-
-	// if err != nil {
-	// 	isFirstPage = true
-	// 	return
-	// }
-
-	//----
-	row, _ := db.Conn.Query(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) > (%d, %d) FETCH FIRST 1 ROWS ONLY",
-		items[0].Updated,
-		items[0].ID))
-	curCountItems := 0
-	for row.Next() {
-		row.Scan(&curCountItems)
-	}
-	if curCountItems == 0 {
-		isFirstPage = true
-		return
-	}
-	//----
-
-	isFirstPage = false
-	return
+	params := ""
+	return db.prevPage(key_upd, key_id, params)
 
 }
 
-func (db *DbHandler) Search(substring string) ([]entry.EntryItem, error) {
+func (db *DbHandler) GetSearchFirstPage(substring string) (items []entry.EntryItem, err error, isLastPage bool) {
 
-	request := fmt.Sprintf("SELECT * FROM items WHERE name ILIKE '%%%s%%' OR description ILIKE '%%%s%%' ORDER BY updated DESC", substring, substring)
-	return db.getItems(request)
+	params := fmt.Sprintf("name ILIKE '%%%s%%' OR description ILIKE '%%%s%%'", substring, substring)
+	return db.firstPage(params)
+
+}
+
+func (db *DbHandler) GetSearchNextPage(key_upd, key_id int64, substring string) (items []entry.EntryItem, err error, isLastPage bool) {
+
+	params := fmt.Sprintf("AND (name ILIKE '%%%s%%' OR description ILIKE '%%%s%%')", substring, substring)
+	return db.nextPage(key_upd, key_id, params)
+
+}
+
+func (db *DbHandler) GetSearchPrevPage(key_upd, key_id int64, substring string) (items []entry.EntryItem, err error, isFirstPage bool) {
+
+	params := fmt.Sprintf("AND (name ILIKE '%%%s%%' OR description ILIKE '%%%s%%')", substring, substring)
+	return db.prevPage(key_upd, key_id, params)
 
 }
 
@@ -208,6 +161,73 @@ func (db *DbHandler) SearchByUser(ID int64) ([]entry.EntryItem, error) {
 	request := fmt.Sprintf("SELECT * FROM items WHERE user_id = %d ORDER BY updated DESC", ID)
 	return db.getItems(request)
 
+}
+
+func (db *DbHandler) firstPage(params string) ([]entry.EntryItem, error, bool) {
+	if params != "" {
+		params = "WHERE " + params
+	}
+	request := fmt.Sprintf("SELECT * FROM items %s ORDER BY (updated, id) DESC FETCH FIRST %d ROWS ONLY", params, db.PageLength)
+	items, err := db.getItems(request)
+	var isLastPage bool
+
+	var count int8
+	err = db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) < (%d, %d) FETCH FIRST 1 ROWS ONLY",
+		items[len(items)-1].Updated,
+		items[len(items)-1].ID)).Scan(&count)
+
+	if count == 0 {
+		log.Printf("Last page: %v", err)
+		isLastPage = true
+	} else {
+		isLastPage = false
+	}
+
+	return items, err, isLastPage
+}
+
+func (db *DbHandler) nextPage(key_upd, key_id int64, params string) ([]entry.EntryItem, error, bool) {
+	log.Printf("GetNextPage Keys: %d, %d", key_upd, key_id)
+	var isLastPage bool
+
+	request := fmt.Sprintf("SELECT * FROM items WHERE (updated, id) < (%d, %d) %s ORDER BY (updated, id) DESC FETCH FIRST %d ROWS ONLY", key_upd, key_id, params, db.PageLength)
+	items, err := db.getItems(request)
+
+	var count int8
+	err = db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) < (%d, %d) %s FETCH FIRST 1 ROWS ONLY",
+		items[len(items)-1].Updated,
+		items[len(items)-1].ID,
+		params)).Scan(&count)
+
+	if count == 0 {
+		isLastPage = true
+	} else {
+		isLastPage = false
+	}
+
+	return items, err, isLastPage
+}
+
+func (db *DbHandler) prevPage(key_upd, key_id int64, params string) ([]entry.EntryItem, error, bool) {
+	log.Printf("GetNextPage Keys: %d, %d", key_upd, key_id)
+	var isLastPage bool
+
+	request := fmt.Sprintf("SELECT * FROM (SELECT * FROM items WHERE (updated, id) > (%d, %d) %s FETCH NEXT %d ROWS ONLY) AS foo ORDER BY id DESC", key_upd, key_id, params, db.PageLength)
+	items, err := db.getItems(request)
+
+	var count int8
+	err = db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) > (%d, %d) %s FETCH FIRST 1 ROWS ONLY",
+		items[len(items)-1].Updated,
+		items[len(items)-1].ID,
+		params)).Scan(&count)
+
+	if count == 0 {
+		isLastPage = true
+	} else {
+		isLastPage = false
+	}
+
+	return items, err, isLastPage
 }
 
 func (db *DbHandler) getItems(request string) ([]entry.EntryItem, error) {

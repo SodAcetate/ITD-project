@@ -50,6 +50,24 @@ func (cache *Cache) Set(ID int64, data cacheentry.CacheEntry) error {
 	return nil
 }
 
+func (cache *Cache) GetInput(ID int64) (string, error) {
+	data, err := cache.Get(ID)
+	return data.Input, err
+}
+
+func (cache *Cache) SetInput(ID int64, input string) error {
+	// Получаем данные из кеша
+	data, err := cache.Get(ID)
+	if err != nil {
+		return err
+	}
+	// Меняем состояние
+	data.Input = input
+	// Записываем обратно
+	err = cache.Set(ID, data)
+	return err
+}
+
 func (cache *Cache) GetUserState(ID int64) (string, error) {
 	data, err := cache.Get(ID)
 	return data.State, err
