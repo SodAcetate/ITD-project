@@ -6,6 +6,7 @@ import (
 	"log"
 	entry "main/shared/entry"
 	"os"
+	"strconv"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -23,7 +24,7 @@ func (db *DbHandler) Init() {
 		fmt.Fprintf(os.Stderr, "connection to db failed: %v\n", err)
 	}
 	db.Conn = *con
-	db.PageLength = 5
+	db.PageLength, _ = strconv.Atoi(os.Getenv("PAGE_LENGTH"))
 }
 
 func (db *DbHandler) Deinit() {
@@ -217,8 +218,8 @@ func (db *DbHandler) prevPage(key_upd, key_id int64, params string) ([]entry.Ent
 
 	var count int8
 	err = db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) > (%d, %d) %s FETCH FIRST 1 ROWS ONLY",
-		items[len(items)-1].Updated,
-		items[len(items)-1].ID,
+		items[0].Updated,
+		items[0].ID,
 		params)).Scan(&count)
 
 	if count == 0 {
