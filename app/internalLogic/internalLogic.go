@@ -75,7 +75,7 @@ func catalogueToString(catalogue []entry.EntryItem, header string, userInfoNeede
 }
 
 func (core *Core) AddUser(ID int64, name, username string) {
-	core.Db.AddUser(entry.EntryUser{ID: ID, State: "start", Name: name, Username: username})
+	core.Db.AddUser(entry.EntryUser{ID: ID, State: "new", Name: name, Username: username})
 }
 
 func (core *Core) EditUser(ID int64, name, username string) {
@@ -139,7 +139,7 @@ func (core *Core) CatNextPage(ID int64) (message.Message, string) {
 	catalogue, _, isLastPage := core.Db.GetCatalogueNextPage(key[0], key[1])
 
 	if len(catalogue) == 0 {
-		msg, state = core.Echo(ID, "start")
+		msg, state = core.Echo(ID, "start", "Это последняя страница!")
 		return msg, state
 	} else {
 		core.Cache.SetCatalogue(ID, catalogue)
@@ -165,7 +165,7 @@ func (core *Core) CatPrevPage(ID int64) (message.Message, string) {
 	catalogue, _, isFirstPage := core.Db.GetCataloguePrevPage(key[0], key[1])
 
 	if len(catalogue) == 0 {
-		msg, state = core.Echo(ID, "start")
+		msg, state = core.Echo(ID, "start", "Это первая страница!")
 		return msg, state
 	} else {
 		core.Cache.SetCatalogue(ID, catalogue)
@@ -206,18 +206,17 @@ func (core *Core) Search(ID int64, input string) (message.Message, string) {
 
 	items, err, isLastPage := core.Db.GetSearchFirstPage(input)
 
-
 	if err != nil {
-		return core.Echo(ID, "start")
+		return core.Echo(ID, "start", "Непредвиденная ошибка")
 	} else if len(items) == 0 {
 		text = "Увы, товаров не найдено"
-    state = "start"
+		state = "start"
 	} else {
 		core.Cache.SetCatalogue(ID, items)
 		text = catalogueToString(items, "Результаты поиска:", true)
 	}
 
-	msg.Text =  text
+	msg.Text = text
 	msg.Buttons = core.MarkupMap[state]
 	if isLastPage == false {
 		msg.Buttons = append(msg.Buttons, "Вперёд")
@@ -239,7 +238,7 @@ func (core *Core) SearchNextPage(ID int64) (message.Message, string) {
 	items, _, isLastPage := core.Db.GetSearchNextPage(key[0], key[1], input)
 
 	if len(items) == 0 {
-		msg, state = core.Echo(ID, "start")
+		msg, state = core.Echo(ID, "start", "Это последняя страница!")
 		return msg, state
 	} else {
 		core.Cache.SetCatalogue(ID, items)
@@ -269,7 +268,7 @@ func (core *Core) SearchPrevPage(ID int64) (message.Message, string) {
 	items, _, isLastPage := core.Db.GetSearchPrevPage(key[0], key[1], input)
 
 	if len(items) == 0 {
-		msg, state = core.Echo(ID, "start")
+		msg, state = core.Echo(ID, "start", "Это первая страница!")
 		return msg, state
 	} else {
 		core.Cache.SetCatalogue(ID, items)
@@ -406,7 +405,7 @@ func (core *Core) SetItemName(ID int64, input string) (message.Message, string) 
 	entry, _ := core.Cache.GetCurrentItem(ID)
 
 	if len(input) > 60 {
-		return Echo(ID,"ask_item_name", fmt.Sprintf("длина названия не больше 60 символов, введено: %d", len(input)))
+		return core.Echo(ID, "ask_item_name", fmt.Sprintf("длина названия не больше 60 символов, введено: %d", len(input)))
 	}
 
 	entry.Name = input
@@ -433,7 +432,7 @@ func (core *Core) SetItemDescription(ID int64, input string) (message.Message, s
 	entry, _ := core.Cache.GetCurrentItem(ID)
 
 	if len(input) > 512 {
-		return Echo(ID,"add_item_desc", fmt.Sprintf("длина описания не больше 512 символов, введено: %d", len(input)))
+		return core.Echo(ID, "add_item_desc", fmt.Sprintf("длина описания не больше 512 символов, введено: %d", len(input)))
 	}
 
 	entry.Desc = input
@@ -530,7 +529,7 @@ func (core *Core) SetContact(ID int64, input string) (message.Message, string) {
 	user := core.Db.GetUserInfo(ID)
 
 	if len(input) > 512 {
-		return Echo(ID,"ask_contact", fmt.Sprintf("не больше 512 символов, введено: %d", len(input)))
+		return core.Echo(ID, "ask_contact", fmt.Sprintf("не больше 512 символов, введено: %d", len(input)))
 	}
 
 	user.Contacts = input
