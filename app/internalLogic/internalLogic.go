@@ -8,6 +8,7 @@ import (
 	"main/shared/entry"
 	"main/shared/message"
 	"strconv"
+	"time"
 )
 
 type Core struct {
@@ -22,13 +23,14 @@ func (core *Core) Init() {
 	core.Cache.Init()
 	core.MarkupMap = map[string][]string{
 		"start":              {"Каталог", "Моё", "Поиск"},
-		"cat":                {"Назад", "Поиск"},
-		"cat_my":             {"Назад", "Добавить", "Изменить", "Удалить", "Указать контакты"},
+		"cat":                {"Выйти", "Поиск"},
+		"cat_my":             {"Выйти", "Добавить", "Изменить", "Удалить", "Указать контакты"},
 		"edit_item":          {"Изменить имя", "Изменить описание", "Отмена", "Готово"},
+		"search":             {"Выйти"},
 		"ask_item_name":      {"Отмена"},
 		"ask_item_desc":      {"Отмена"},
+		"ask_search":         {"Отмена"},
 		"ask_contact":        {"Отмена"},
-		"search":             {"Отмена"},
 		"delete_item_select": {"Отмена"},
 		"edit_item_select":   {"Отмена"},
 	}
@@ -58,7 +60,10 @@ func itemToString(item entry.EntryItem) string {
 }
 
 func catalogueToString(catalogue []entry.EntryItem, header string) string {
-	text := header + "\n"
+	text := ""
+	if header != "" {
+		text = header + "\n"
+	}
 	for index, item := range catalogue {
 		text += fmt.Sprintf("\n<b>%d.</b> %s", index+1, itemToString(item))
 	}
@@ -99,7 +104,7 @@ func (core *Core) Echo(ID int64, state string) (message.Message, string) {
 func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 	state := "cat"
 	var msg message.Message
-	catalogue, _ := core.Db.GetAll()
+	catalogue, _, isLastPage := core.Db.GetCatalogueFirstPage()
 
 	if len(catalogue) == 0 {
 		msg.Text = "Товаров нет! Можете добавить первый"
@@ -112,7 +117,63 @@ func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 	msg.Text = catalogueToString(catalogue, "Каталог")
 	msg.Buttons = core.MarkupMap[state]
 
+	if isLastPage == false {
+		msg.Buttons = append(msg.Buttons, "Вперёд")
+	}
+
 	return msg, state
+}
+
+func (core *Core) CatNextPage(ID int64) (message.Message, string) {
+	state := "cat"
+	var msg message.Message
+
+	catalogue, _ := core.Cache.GetCatalogue(ID)
+	key := []int64{catalogue[len(catalogue)-1].Updated, catalogue[len(catalogue)-1].ID}
+	log.Println(key)
+
+	catalogue, err, isLastPage := core.Db.GetCatalogueNextPage(key[0], key[1])
+
+	if err != nil {
+		log.Printf("Next Page Error: %v", err)
+		return core.Echo(ID, "cat")
+	} else {
+		core.Cache.SetCatalogue(ID, catalogue)
+		msg.Text = catalogueToString(catalogue, "")
+		msg.Buttons = core.MarkupMap[state]
+		msg.Buttons = append(msg.Buttons, "Назад")
+		if isLastPage == false {
+			msg.Buttons = append(msg.Buttons, "Вперёд")
+		}
+
+		return msg, state
+	}
+}
+
+func (core *Core) CatPrevPage(ID int64) (message.Message, string) {
+	state := "cat"
+	var msg message.Message
+
+	catalogue, _ := core.Cache.GetCatalogue(ID)
+	key := []int64{catalogue[0].Updated, catalogue[0].ID}
+	log.Println(key)
+
+	catalogue, err, isFirstPage := core.Db.GetCataloguePrevPage(key[0], key[1])
+
+	if err != nil {
+		return core.Echo(ID, "cat")
+	} else {
+		core.Cache.SetCatalogue(ID, catalogue)
+
+		msg.Text = catalogueToString(catalogue, "Каталог")
+		msg.Buttons = core.MarkupMap[state]
+		if isFirstPage == false {
+			msg.Buttons = append(msg.Buttons, "Назад")
+		}
+		msg.Buttons = append(msg.Buttons, "Вперёд")
+
+		return msg, state
+	}
 }
 
 // поиск по вхождению в название
@@ -123,7 +184,7 @@ func (core *Core) SearchInit(ID int64) (message.Message, string) {
 		msg   message.Message
 	)
 
-	state = "search"
+	state = "ask_search"
 	msg.Text = "Введите запрос:"
 	msg.Buttons = core.MarkupMap[state]
 
@@ -135,19 +196,83 @@ func (core *Core) SearchInit(ID int64) (message.Message, string) {
 func (core *Core) Search(ID int64, input string) (message.Message, string) {
 	var msg message.Message
 	var text string
-	state := "start"
+	state := "search"
+	core.Cache.SetInput(ID, input)
 
-	items, _ := core.Db.Search(input)
+	items, err, isLastPage := core.Db.GetSearchFirstPage(input)
 
-	if len(items) == 0 {
+	if err != nil {
+		return core.Echo(ID, "cat")
+	} else if len(items) == 0 {
 		text = "Увы, товаров не найдено"
 	} else {
 		core.Cache.SetCatalogue(ID, items)
-		text = catalogueToString(items, "Резеультаты поиска:")
+		text = catalogueToString(items, "Результаты поиска:")
 	}
 
 	msg.Text = text
 	msg.Buttons = core.MarkupMap[state]
+	if isLastPage == false {
+		msg.Buttons = append(msg.Buttons, "Вперёд")
+	}
+
+	return msg, state
+}
+
+func (core *Core) SearchNextPage(ID int64) (message.Message, string) {
+	var msg message.Message
+	var text string
+	state := "search"
+	input, _ := core.Cache.GetInput(ID)
+
+	catalogue, _ := core.Cache.GetCatalogue(ID)
+	key := []int64{catalogue[len(catalogue)-1].Updated, catalogue[len(catalogue)-1].ID}
+	log.Println(key)
+
+	items, err, isLastPage := core.Db.GetSearchNextPage(key[0], key[1], input)
+
+	if err != nil {
+		return core.Echo(ID, "search")
+	} else {
+		core.Cache.SetCatalogue(ID, items)
+		text = catalogueToString(items, "")
+	}
+
+	msg.Text = text
+	msg.Buttons = core.MarkupMap[state]
+	msg.Buttons = append(msg.Buttons, "Назад")
+	if isLastPage == false {
+		msg.Buttons = append(msg.Buttons, "Вперёд")
+	}
+
+	return msg, state
+}
+
+func (core *Core) SearchPrevPage(ID int64) (message.Message, string) {
+	var msg message.Message
+	var text string
+	state := "search"
+	input, _ := core.Cache.GetInput(ID)
+
+	catalogue, _ := core.Cache.GetCatalogue(ID)
+	key := []int64{catalogue[0].Updated, catalogue[0].ID}
+	log.Println(key)
+
+	items, err, isLastPage := core.Db.GetSearchPrevPage(key[0], key[1], input)
+
+	if err != nil {
+		return core.Echo(ID, "search")
+	} else {
+		core.Cache.SetCatalogue(ID, items)
+		text = catalogueToString(items, "")
+	}
+
+	msg.Text = text
+	msg.Buttons = core.MarkupMap[state]
+	if isLastPage == false {
+		msg.Buttons = append(msg.Buttons, "Назад")
+	}
+	msg.Buttons = append(msg.Buttons, "Вперёд")
 
 	return msg, state
 }
@@ -324,6 +449,7 @@ func (core *Core) ItemPost(ID int64) (message.Message, string) {
 	state := "start"
 
 	entry, _ := core.Cache.GetCurrentItem(ID)
+	entry.Updated = time.Now().Unix()
 
 	if entry.ID == 0 {
 		core.Db.AddItem(entry)
