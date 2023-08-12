@@ -88,9 +88,10 @@ func (core *Core) Start(ID int64) (message.Message, string) {
 	return msg, state
 }
 
-func (core *Core) Echo(ID int64, state string) (message.Message, string) {
-	state = "start"
-	msg := message.Message{Text: "Сори чё-то пошло не так", Buttons: core.MarkupMap[state]}
+func (core *Core) Echo(ID int64, state string, reply string) (message.Message, string) {
+	//state = "start"
+	text := "Ой, чёт не то: " + reply
+	msg := message.Message{Text: text, Buttons: core.MarkupMap[state]}
 	return msg, state
 }
 
@@ -140,13 +141,12 @@ func (core *Core) Search(ID int64, input string) (message.Message, string) {
 	items, _ := core.Db.Search(input)
 
 	if len(items) == 0 {
-		text = "Увы, товаров не найдено"
-	} else {
-		core.Cache.SetCatalogue(ID, items)
-		text = catalogueToString(items, "Резеультаты поиска:")
+		return Echo(ID, "search", "товаров не найдено")
 	}
 
-	msg.Text = text
+	core.Cache.SetCatalogue(ID, items)
+
+	msg.Text =  catalogueToString(items, "Результаты поиска:")
 	msg.Buttons = core.MarkupMap[state]
 
 	return msg, state
@@ -271,17 +271,16 @@ func (core *Core) SetItemName(ID int64, input string) (message.Message, string) 
 
 	entry, _ := core.Cache.GetCurrentItem(ID)
 
-	if len(input) <= 60 {
-		entry.Name = input
-		core.Cache.SetCurrentItem(ID, entry)
-
-		msg.Text = "Имя успешно добавлено"
-		state = "edit_item"
-	} else {
-		msg.Text = "Сорян, длина названия не больше 60 символов"
-		state = "ask_item_name"
+	if len(input) > 60 {
+		return Echo(ID,"ask_item_name", fmt.Sprintf("длина названия не больше 60 символов, введено: %d", len(input)))
 	}
 
+	entry.Name = input
+	core.Cache.SetCurrentItem(ID, entry)
+
+	state = "edit_item"
+
+	msg.Text = "Имя успешно добавлено"
 	msg.Buttons = core.MarkupMap[state]
 
 	return msg, state
@@ -299,19 +298,16 @@ func (core *Core) SetItemDescription(ID int64, input string) (message.Message, s
 
 	entry, _ := core.Cache.GetCurrentItem(ID)
 
-	if len(input) <= 512 {
-		entry.Desc = input
-		core.Cache.SetCurrentItem(ID, entry)
-
-		msg.Text = "Описание успешно добавлено"
-		msg.Buttons = core.MarkupMap["edit_item"]
-		state = "edit_item"
-	} else {
-		msg.Text = "Сорян, длина описания не больше 512 символов"
-		msg.Buttons = []string{"Отмена"}
-		state = "add_item_desc"
+	if len(input) > 512 {
+		return Echo(ID,"add_item_desc", fmt.Sprintf("длина описания не больше 512 символов, введено: %d", len(input)))
 	}
 
+	entry.Desc = input
+	core.Cache.SetCurrentItem(ID, entry)
+
+	state = "edit_item"
+
+	msg.Text = "Описание успешно добавлено"
 	msg.Buttons = core.MarkupMap[state]
 
 	return msg, state
@@ -398,18 +394,16 @@ func (core *Core) SetContact(ID int64, input string) (message.Message, string) {
 
 	user := core.Db.GetUserInfo(ID)
 
-	if len(input) <= 512 {
-
-		user.Contacts = input
-		core.Db.EditUser(user)
-		msg.Text = "Контактные данные успешно обновлены: \n" + userToString(user)
-		state = "start"
-
-	} else {
-		msg.Text = "Сорян, не больше 512 символов"
-		state = "ask_contact"
+	if len(input) > 512 {
+		return Echo(ID,"ask_contact", fmt.Sprintf("не больше 512 символов, введено: %d", len(input)))
 	}
 
+	user.Contacts = input
+	core.Db.EditUser(user)
+
+	state = "start"
+
+	msg.Text = "Контактные данные успешно обновлены: \n" + userToString(user)
 	msg.Buttons = core.MarkupMap[state]
 
 	return msg, state
