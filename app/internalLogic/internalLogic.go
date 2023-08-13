@@ -124,7 +124,10 @@ func (core *Core) Cancel(ID int64) (message.Message, string) {
 
 func (core *Core) Start(ID int64) (message.Message, string) {
 	state := "start"
-	msg := message.Message{Text: "Привет! Выбирай действие!", Buttons: core.MarkupMap[state]}
+	msg := message.Message{Text: "Привет! Выбирай действие!\n\n" +
+		"<b>Каталог</b> — список всех предметов\n" +
+		"<b>Поиск</b> — поиск по названию и описанию\n" +
+		"<b>Моё</b> — список твоих предметов. Здесь можно добавлять, удалять и изменять предметы.", Buttons: core.MarkupMap[state]}
 	return msg, state
 }
 
