@@ -291,18 +291,19 @@ func (core *Core) GetUsersItems(ID int64) (message.Message, string) {
 	var msg message.Message
 	catalogue, _ := core.Db.SearchByUser(ID)
 
+	text = userToString(core.Db.GetUserInfo(ID)) + "\n\n"
+
 	if len(catalogue) == 0 {
-		text = "Товаров нет! Можете добавить первый"
+		text = text + "Товаров нет! Можете добавить первый"
+		msg.Buttons = []string{"Выйти", "Добавить", "Указать контакты"}
+	} else {
+		log.Printf("Test: " + catalogue[0].UserInfo.Name)
+		core.Cache.SetCatalogue(ID, catalogue)
+		text = text + catalogueToString(catalogue, "<b>Ваши товары:</b>", false)
+		msg.Buttons = core.MarkupMap[state]
 	}
 
-	log.Printf("Test: " + catalogue[0].UserInfo.Name)
-
-	core.Cache.SetCatalogue(ID, catalogue)
-
-	text = catalogueToString(catalogue, "Ваши товары:", false)
-
 	msg.Text = text
-	msg.Buttons = core.MarkupMap[state]
 
 	return msg, state
 }

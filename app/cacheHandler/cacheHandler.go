@@ -27,14 +27,17 @@ func (cache *Cache) Deinit() {
 }
 
 func (cache *Cache) AddUser(ID int64) {
-	data := cacheentry.CacheEntry{State: "start", CurrentItem: entry.EntryItem{}, Catalogue: nil}
+	data := cacheentry.CacheEntry{State: "start", CurrentItem: entry.EntryItem{}, Catalogue: []entry.EntryItem{{}}}
 	cache.Set(ID, data)
 }
 
 func (cache *Cache) Get(ID int64) (cacheentry.CacheEntry, error) {
 	js, err := cache.client.Get(fmt.Sprint(ID)).Result()
+	log.Printf("CacheHandler : Get : %v", len(js))
 	if err != nil {
+		log.Printf("CacheHandler : Get : %v", err)
 		cache.AddUser(ID)
+		js, err = cache.client.Get(fmt.Sprint(ID)).Result()
 	}
 	var data cacheentry.CacheEntry
 	err = json.Unmarshal([]byte(js), &data)
@@ -44,8 +47,11 @@ func (cache *Cache) Get(ID int64) (cacheentry.CacheEntry, error) {
 func (cache *Cache) Set(ID int64, data cacheentry.CacheEntry) error {
 	js, err := json.Marshal(data)
 	if err != nil {
-		return err
+		log.Printf("CacheHandler : Get : %v", err)
 	}
+
+	log.Printf("CacheHandler : Set : %v", len(js))
+
 	cache.client.Set(fmt.Sprint(ID), string(js), 0)
 	return nil
 }
@@ -126,4 +132,8 @@ func (cache *Cache) SetCatalogue(ID int64, catalogue []entry.EntryItem) error {
 
 func (cache *Cache) Clear(ID int64) {
 	cache.client.Del(fmt.Sprint(ID))
+}
+
+func (cache *Cache) ClearAll() {
+	cache.client.FlushAll()
 }

@@ -18,6 +18,7 @@ func main() {
 
 	var qHandler queryhandler.QueryHandler
 	qHandler.Init()
+	//qHandler.Core.Cache.ClearAll()
 	defer qHandler.Deinit()
 
 	u := tgbotapi.NewUpdate(0)
