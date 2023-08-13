@@ -20,7 +20,7 @@ func (cache *Cache) Deinit() {
 }
 
 func (cache *Cache) AddUser(ID int64) {
-	data := cacheentry.CacheEntry{State: "start", CurrentItem: entry.EntryItem{}, Catalogue: []entry.EntryItem{{}}}
+	data := cacheentry.CacheEntry{State: "start", CurrentItem: entry.EntryItem{}, Catalogue: nil}
 	cache.Set(ID, data)
 }
 
@@ -87,6 +87,9 @@ func (cache *Cache) SetCurrentItem(ID int64, item entry.EntryItem) {
 
 func (cache *Cache) GetCatalogue(ID int64) ([]entry.EntryItem, bool) {
 	data, ok := cache.Get(ID)
+	if data.Catalogue == nil {
+		ok = false
+	}
 	return data.Catalogue, ok
 }
 

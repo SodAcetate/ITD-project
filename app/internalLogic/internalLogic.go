@@ -132,7 +132,7 @@ func (core *Core) Start(ID int64) (message.Message, string) {
 }
 
 func (core *Core) Echo(ID int64, state string, reply string) (message.Message, string) {
-	text := "Ой, чёт не то: " + reply
+	text := "Ой, чёт не то. " + reply
 	msg := message.Message{Text: text, Buttons: core.MarkupMap[state]}
 	return msg, state
 }
@@ -470,7 +470,7 @@ func (core *Core) SetItemName(ID int64, input string) (message.Message, string) 
 	}
 
 	if len(input) > 60 {
-		return core.Echo(ID, "ask_item_name", fmt.Sprintf("длина названия не больше 60 символов, введено: %d", len(input)))
+		return core.Echo(ID, "ask_item_name", fmt.Sprintf("Длина названия не больше 60 символов, введено: %d", len(input)))
 	}
 
 	entry.Name = input
@@ -500,7 +500,7 @@ func (core *Core) SetItemDescription(ID int64, input string) (message.Message, s
 	}
 
 	if len(input) > 512 {
-		return core.Echo(ID, "add_item_desc", fmt.Sprintf("длина описания не больше 512 символов, введено: %d", len(input)))
+		return core.Echo(ID, "ask_item_desc", fmt.Sprintf("Длина описания не больше 512 символов, введено: %d", len(input)))
 	}
 
 	entry.Desc = input
@@ -607,7 +607,7 @@ func (core *Core) SetContact(ID int64, input string) (message.Message, string) {
 	user := core.Db.GetUserInfo(ID)
 
 	if len(input) > 512 {
-		return core.Echo(ID, "ask_contact", fmt.Sprintf("не больше 512 символов, введено: %d", len(input)))
+		return core.Echo(ID, "ask_contact", fmt.Sprintf("Не больше 512 символов, введено: %d", len(input)))
 	}
 
 	user.Contacts = input
