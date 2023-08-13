@@ -258,11 +258,11 @@ func (qHandler *QueryHandler) deleteItemSelectHandle(update *tgbotapi.Update) (m
 func (qHandler *QueryHandler) Process(update *tgbotapi.Update) tgbotapi.MessageConfig {
 	// получаем айди юзера и состояние
 	ID := update.Message.Chat.ID
-	state, err := qHandler.Core.Db.GetUserState(ID)
+	state, err := qHandler.Core.GetUserState(ID)
 	if err != nil {
 		log.Printf("Adding user %s", update.Message.Chat.FirstName)
 		qHandler.Core.AddUser(ID, fmt.Sprintf("%s %s", update.Message.Chat.FirstName, update.Message.Chat.LastName), update.Message.Chat.UserName)
-		state, err = qHandler.Core.Db.GetUserState(ID)
+		state, err = qHandler.Core.GetUserState(ID)
 	}
 	log.Printf("ID %d: state %s", ID, state)
 	// создаём пустой респонс
@@ -274,6 +274,7 @@ func (qHandler *QueryHandler) Process(update *tgbotapi.Update) tgbotapi.MessageC
 	response.ParseMode = tgbotapi.ModeHTML
 	response.ReplyMarkup = buildMarkup(msg.Buttons)
 
-	qHandler.Core.Db.UpdateUserState(update.Message.Chat.ID, new_state)
+	qHandler.Core.UpdateUserState(update.Message.Chat.ID, new_state)
+
 	return response
 }

@@ -12,9 +12,10 @@ import (
 )
 
 type Core struct {
-	Db        dbhandler.DbHandler
-	Cache     cachehandler.Cache
-	MarkupMap map[string][]string
+	Db          dbhandler.DbHandler
+	Cache       cachehandler.Cache
+	MarkupMap   map[string][]string
+	finalStates map[string]bool
 }
 
 // Инициализация
@@ -34,11 +35,41 @@ func (core *Core) Init() {
 		"delete_item_select": {"Отмена"},
 		"edit_item_select":   {"Отмена"},
 	}
+	core.finalStates = map[string]bool{
+		"new":                true,
+		"start":              true,
+		"ask_item_name":      false,
+		"ask_item_desc":      false,
+		"ask_contact":        false,
+		"edit_item_select":   false,
+		"edit_item":          false,
+		"delete_item_select": false,
+		"cat":                true,
+		"ask_search":         false,
+		"cat_my":             true,
+		"search":             true,
+	}
 }
 
 func (core *Core) Deinit() {
 	core.Db.Deinit()
 	core.Cache.Deinit()
+}
+
+func (core *Core) GetUserState(ID int64) (string, error) {
+	state, ok := core.Cache.GetUserState(ID)
+	var err error
+	if !ok {
+		state, err = core.Db.GetUserState(ID)
+	}
+	return state, err
+}
+
+func (core *Core) UpdateUserState(ID int64, state string) {
+	core.Cache.SetUserState(ID, state)
+	if core.finalStates[state] {
+		core.Db.UpdateUserState(ID, state)
+	}
 }
 
 // получает на вход ID юзера и иногда сообщение
@@ -132,7 +163,10 @@ func (core *Core) CatNextPage(ID int64) (message.Message, string) {
 	state := "cat"
 	var msg message.Message
 
-	catalogue, _ := core.Cache.GetCatalogue(ID)
+	catalogue, ok := core.Cache.GetCatalogue(ID)
+	if !ok {
+		return core.Echo(ID, "start", "")
+	}
 	key := []int64{catalogue[len(catalogue)-1].Updated, catalogue[len(catalogue)-1].ID}
 	log.Println(key)
 
@@ -158,7 +192,11 @@ func (core *Core) CatPrevPage(ID int64) (message.Message, string) {
 	state := "cat"
 	var msg message.Message
 
-	catalogue, _ := core.Cache.GetCatalogue(ID)
+	catalogue, ok := core.Cache.GetCatalogue(ID)
+	if !ok {
+		return core.Echo(ID, "start", "")
+	}
+
 	key := []int64{catalogue[0].Updated, catalogue[0].ID}
 	log.Println(key)
 
@@ -229,9 +267,16 @@ func (core *Core) SearchNextPage(ID int64) (message.Message, string) {
 	var msg message.Message
 	var text string
 	state := "search"
-	input, _ := core.Cache.GetInput(ID)
+	input, ok := core.Cache.GetInput(ID)
+	if !ok {
+		return core.Echo(ID, "start", "")
+	}
 
-	catalogue, _ := core.Cache.GetCatalogue(ID)
+	catalogue, ok := core.Cache.GetCatalogue(ID)
+	if !ok {
+		return core.Echo(ID, "start", "")
+	}
+
 	key := []int64{catalogue[len(catalogue)-1].Updated, catalogue[len(catalogue)-1].ID}
 	log.Println(key)
 
@@ -259,9 +304,16 @@ func (core *Core) SearchPrevPage(ID int64) (message.Message, string) {
 	var msg message.Message
 	var text string
 	state := "search"
-	input, _ := core.Cache.GetInput(ID)
+	input, ok := core.Cache.GetInput(ID)
+	if !ok {
+		return core.Echo(ID, "start", "")
+	}
 
-	catalogue, _ := core.Cache.GetCatalogue(ID)
+	catalogue, ok := core.Cache.GetCatalogue(ID)
+	if !ok {
+		return core.Echo(ID, "start", "")
+	}
+
 	key := []int64{catalogue[0].Updated, catalogue[0].ID}
 	log.Println(key)
 
@@ -330,7 +382,10 @@ func (core *Core) EditItemSelect(ID int64) (message.Message, string) {
 	msg.Text = "Выберите предмет для редактирования"
 	state := "edit_item_select"
 
-	items, _ := core.Cache.GetCatalogue(ID)
+	items, ok := core.Cache.GetCatalogue(ID)
+	if !ok {
+		return core.Echo(ID, "start", "")
+	}
 
 	buttons := core.MarkupMap[state]
 
@@ -349,7 +404,10 @@ func (core *Core) EditItemInit(ID int64, input string) (message.Message, string)
 
 	index, _ := strconv.Atoi(input)
 
-	catalogue, _ := core.Cache.GetCatalogue(ID)
+	catalogue, ok := core.Cache.GetCatalogue(ID)
+	if !ok {
+		return core.Echo(ID, "start", "")
+	}
 
 	log.Printf("Длина каталога %d", len(catalogue))
 
@@ -403,7 +461,10 @@ func (core *Core) SetItemName(ID int64, input string) (message.Message, string) 
 		state string
 	)
 
-	entry, _ := core.Cache.GetCurrentItem(ID)
+	entry, ok := core.Cache.GetCurrentItem(ID)
+	if !ok {
+		return core.Echo(ID, "start", "")
+	}
 
 	if len(input) > 60 {
 		return core.Echo(ID, "ask_item_name", fmt.Sprintf("длина названия не больше 60 символов, введено: %d", len(input)))
@@ -430,7 +491,10 @@ func (core *Core) SetItemDescription(ID int64, input string) (message.Message, s
 		state string
 	)
 
-	entry, _ := core.Cache.GetCurrentItem(ID)
+	entry, ok := core.Cache.GetCurrentItem(ID)
+	if !ok {
+		return core.Echo(ID, "start", "")
+	}
 
 	if len(input) > 512 {
 		return core.Echo(ID, "add_item_desc", fmt.Sprintf("длина описания не больше 512 символов, введено: %d", len(input)))
@@ -453,7 +517,10 @@ func (core *Core) ItemPost(ID int64) (message.Message, string) {
 	var msg message.Message
 	state := "start"
 
-	entry, _ := core.Cache.GetCurrentItem(ID)
+	entry, ok := core.Cache.GetCurrentItem(ID)
+	if !ok {
+		return core.Echo(ID, "start", "")
+	}
 	entry.Updated = time.Now().Unix()
 
 	if entry.ID == 0 {
@@ -474,7 +541,10 @@ func (core *Core) DeleteItemSelect(ID int64) (message.Message, string) {
 	msg.Text = "Выберите предмет для удаления"
 	state := "delete_item_select"
 
-	catalogue, _ := core.Cache.GetCatalogue(ID)
+	catalogue, ok := core.Cache.GetCatalogue(ID)
+	if !ok {
+		return core.Echo(ID, "start", "")
+	}
 
 	buttons := core.MarkupMap[state]
 
@@ -492,7 +562,11 @@ func (core *Core) DeleteItem(ID int64, input string) (message.Message, string) {
 
 	index, _ := strconv.Atoi(input)
 
-	catalogue, _ := core.Cache.GetCatalogue(ID)
+	catalogue, ok := core.Cache.GetCatalogue(ID)
+	if !ok {
+		return core.Echo(ID, "start", "")
+	}
+
 	if len(catalogue) == 0 {
 		catalogue, _ = core.Db.GetAll()
 	}
