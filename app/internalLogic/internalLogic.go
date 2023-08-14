@@ -8,6 +8,7 @@ import (
 	"main/shared/entry"
 	"main/shared/message"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -248,7 +249,7 @@ func (core *Core) Search(ID int64, input string) (message.Message, string) {
 	state := "search"
 	core.Cache.SetInput(ID, input)
 
-	items, err, isLastPage := core.Db.GetSearchFirstPage(input)
+	items, err, isLastPage := core.Db.GetSearchFirstPage(strings.Split(input, " "))
 
 	if err != nil {
 		return core.Echo(ID, "start", "Непредвиденная ошибка")
@@ -286,7 +287,7 @@ func (core *Core) SearchNextPage(ID int64) (message.Message, string) {
 	key := []int64{catalogue[len(catalogue)-1].Updated, catalogue[len(catalogue)-1].ID}
 	log.Println(key)
 
-	items, _, isLastPage := core.Db.GetSearchNextPage(key[0], key[1], input)
+	items, _, isLastPage := core.Db.GetSearchNextPage(key[0], key[1], strings.Split(input, " "))
 
 	if len(items) == 0 {
 		msg, state = core.Echo(ID, "start", "Это последняя страница!")
@@ -323,7 +324,7 @@ func (core *Core) SearchPrevPage(ID int64) (message.Message, string) {
 	key := []int64{catalogue[0].Updated, catalogue[0].ID}
 	log.Println(key)
 
-	items, _, isLastPage := core.Db.GetSearchPrevPage(key[0], key[1], input)
+	items, _, isLastPage := core.Db.GetSearchPrevPage(key[0], key[1], strings.Split(input, " "))
 
 	if len(items) == 0 {
 		msg, state = core.Echo(ID, "start", "Это первая страница!")

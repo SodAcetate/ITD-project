@@ -182,30 +182,49 @@ func (db *DbHandler) GetCataloguePrevPage(key_upd, key_id int64) ([]entry.EntryI
 	return items, err, isFirstPage
 }
 
-func (db *DbHandler) GetSearchFirstPage(substring string) ([]entry.EntryItem, error, bool) {
-	db.DebugLogger.Printf("DbHandler: GetSearchFirstPage <- %v", substring)
+func (db *DbHandler) GetSearchFirstPage(substrings []string) ([]entry.EntryItem, error, bool) {
+	db.DebugLogger.Printf("DbHandler: GetSearchFirstPage <- %v", substrings)
+	params := "("
 
-	params := fmt.Sprintf("CONCAT(name, ' ', description) ILIKE '%%%s%%'", substring)
+	for i, substring := range substrings {
+		if i > 0 {
+			params += " AND "
+		}
+		params += fmt.Sprintf("CONCAT(name, ' ', description) ILIKE '%%%s%%'", substring)
+	}
+
+	params += ")"
+
 	items, err, isLastPage := db.firstPage(params)
 
 	db.DebugLogger.Printf("DbHandler: GetSearchFirstPage -> %v, %v, %v", items, err, isLastPage)
 	return items, err, isLastPage
 }
 
-func (db *DbHandler) GetSearchNextPage(key_upd, key_id int64, substring string) ([]entry.EntryItem, error, bool) {
-	db.DebugLogger.Printf("DbHandler: GetSearchNextPage <- %v, %v, %v", key_upd, key_id, substring)
+func (db *DbHandler) GetSearchNextPage(key_upd, key_id int64, substrings []string) ([]entry.EntryItem, error, bool) {
+	db.DebugLogger.Printf("DbHandler: GetSearchNextPage <- %v, %v, %v", key_upd, key_id, substrings)
+	var params string
 
-	params := fmt.Sprintf("AND (CONCAT(name, ' ', description) ILIKE '%%%s%%')", substring)
+	for _, substring := range substrings {
+		params += " AND "
+		params += fmt.Sprintf("CONCAT(name, ' ', description) ILIKE '%%%s%%'", substring)
+	}
+
 	items, err, isLastPage := db.nextPage(key_upd, key_id, params)
 
 	db.DebugLogger.Printf("DbHandler: GetSearchNextPage -> %v, %v, %v", items, err, isLastPage)
 	return items, err, isLastPage
 }
 
-func (db *DbHandler) GetSearchPrevPage(key_upd, key_id int64, substring string) ([]entry.EntryItem, error, bool) {
-	db.DebugLogger.Printf("DbHandler: GetSearchPrevPage <- %v, %v, %v", key_upd, key_id, substring)
+func (db *DbHandler) GetSearchPrevPage(key_upd, key_id int64, substrings []string) ([]entry.EntryItem, error, bool) {
+	db.DebugLogger.Printf("DbHandler: GetSearchPrevPage <- %v, %v, %v", key_upd, key_id, substrings)
+	var params string
 
-	params := fmt.Sprintf("AND (CONCAT(name, ' ', description) ILIKE '%%%s%%')", substring)
+	for _, substring := range substrings {
+		params += " AND "
+		params += fmt.Sprintf("CONCAT(name, ' ', description) ILIKE '%%%s%%'", substring)
+	}
+
 	items, err, isFirstPage := db.prevPage(key_upd, key_id, params)
 
 	db.DebugLogger.Printf("DbHandler: GetSearchPrevPage -> %v, %v, %v", items, err, isFirstPage)
