@@ -182,7 +182,7 @@ func (db *DbHandler) GetCataloguePrevPage(key_upd, key_id int64) ([]entry.EntryI
 	return items, err, isFirstPage
 }
 
-func (db *DbHandler) GetSearchFirstPage(substring []string) ([]entry.EntryItem, error, bool) {
+func (db *DbHandler) GetSearchFirstPage(substring string) ([]entry.EntryItem, error, bool) {
 	db.DebugLogger.Printf("DbHandler: GetSearchFirstPage <- %v", substring)
 
 	params := fmt.Sprintf("CONCAT(name, ' ', description) ILIKE '%%%s%%'", substring)
