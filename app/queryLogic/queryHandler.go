@@ -177,7 +177,7 @@ func (qHandler *QueryHandler) editItemHandle(update *tgbotapi.Update) (message.M
 	case "Готово":
 		msg, new_state = qHandler.Core.ItemPost(update.Message.Chat.ID)
 	default:
-		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "add_item_wait", "Некорректная команда")
+		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "edit_item", "Некорректная команда")
 	}
 
 	return msg, new_state

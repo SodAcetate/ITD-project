@@ -23,7 +23,7 @@ func (core *Core) Init() {
 	core.Db.Init()
 	core.Cache.Init()
 	core.MarkupMap = map[string][]string{
-		"start":              {"Каталог", "Моё", "Поиск"},
+		"start":              {"Каталог", "Поиск", "Моё"},
 		"cat":                {"Выйти", "Поиск"},
 		"cat_my":             {"Выйти", "Добавить", "Изменить", "Удалить", "Указать контакты"},
 		"edit_item":          {"Изменить имя", "Изменить описание", "Отмена", "Готово"},
@@ -87,7 +87,10 @@ func userToString(user entry.EntryUser) string {
 
 // Получить текстовое представление предмета
 func itemToString(item entry.EntryItem, userInfoNeeded bool) string {
-	text := fmt.Sprintf("<b>%s</b>\n%s\n", item.Name, item.Desc)
+	text := fmt.Sprintf("<b>%s</b>\n", item.Name)
+	if item.Desc != "" {
+		text += fmt.Sprintf("%s\n", item.Desc)
+	}
 	if userInfoNeeded {
 		text += fmt.Sprintf("%s\n", userToString(item.UserInfo))
 	}

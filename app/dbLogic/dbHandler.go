@@ -182,10 +182,10 @@ func (db *DbHandler) GetCataloguePrevPage(key_upd, key_id int64) ([]entry.EntryI
 	return items, err, isFirstPage
 }
 
-func (db *DbHandler) GetSearchFirstPage(substring string) ([]entry.EntryItem, error, bool) {
+func (db *DbHandler) GetSearchFirstPage(substring []string) ([]entry.EntryItem, error, bool) {
 	db.DebugLogger.Printf("DbHandler: GetSearchFirstPage <- %v", substring)
 
-	params := fmt.Sprintf("name ILIKE '%%%s%%' OR description ILIKE '%%%s%%'", substring, substring)
+	params := fmt.Sprintf("CONCAT(name, ' ', description) ILIKE '%%%s%%'", substring)
 	items, err, isLastPage := db.firstPage(params)
 
 	db.DebugLogger.Printf("DbHandler: GetSearchFirstPage -> %v, %v, %v", items, err, isLastPage)
@@ -195,7 +195,7 @@ func (db *DbHandler) GetSearchFirstPage(substring string) ([]entry.EntryItem, er
 func (db *DbHandler) GetSearchNextPage(key_upd, key_id int64, substring string) ([]entry.EntryItem, error, bool) {
 	db.DebugLogger.Printf("DbHandler: GetSearchNextPage <- %v, %v, %v", key_upd, key_id, substring)
 
-	params := fmt.Sprintf("AND (name ILIKE '%%%s%%' OR description ILIKE '%%%s%%')", substring, substring)
+	params := fmt.Sprintf("AND (CONCAT(name, ' ', description) ILIKE '%%%s%%')", substring)
 	items, err, isLastPage := db.nextPage(key_upd, key_id, params)
 
 	db.DebugLogger.Printf("DbHandler: GetSearchNextPage -> %v, %v, %v", items, err, isLastPage)
@@ -205,7 +205,7 @@ func (db *DbHandler) GetSearchNextPage(key_upd, key_id int64, substring string) 
 func (db *DbHandler) GetSearchPrevPage(key_upd, key_id int64, substring string) ([]entry.EntryItem, error, bool) {
 	db.DebugLogger.Printf("DbHandler: GetSearchPrevPage <- %v, %v, %v", key_upd, key_id, substring)
 
-	params := fmt.Sprintf("AND (name ILIKE '%%%s%%' OR description ILIKE '%%%s%%')", substring, substring)
+	params := fmt.Sprintf("AND (CONCAT(name, ' ', description) ILIKE '%%%s%%')", substring)
 	items, err, isFirstPage := db.prevPage(key_upd, key_id, params)
 
 	db.DebugLogger.Printf("DbHandler: GetSearchPrevPage -> %v, %v, %v", items, err, isFirstPage)
@@ -295,7 +295,7 @@ func (db *DbHandler) prevPage(key_upd, key_id int64, params string) ([]entry.Ent
 	db.DebugLogger.Printf("DbHandler: prevPage <- %v, %v", key_upd, key_id)
 
 	var isFirstPage bool
-	request := fmt.Sprintf("SELECT * FROM (SELECT * FROM items WHERE (updated, id) > (%d, %d) %s FETCH NEXT %d ROWS ONLY) AS foo ORDER BY (updated, id) DESC", key_upd, key_id, params, db.PageLength)
+	request := fmt.Sprintf("SELECT * FROM (SELECT * FROM items WHERE (updated, id) > (%d, %d) %s ORDER BY (updated, id) ASC FETCH NEXT %d ROWS ONLY) AS foo ORDER BY (updated, id) DESC", key_upd, key_id, params, db.PageLength)
 
 	db.DebugLogger.Printf("DbHandler: prevPage : %v", request)
 
@@ -334,6 +334,7 @@ func (db *DbHandler) getItems(request string) ([]entry.EntryItem, error) {
 			db.DebugLogger.Printf("DbHandler: getItems error : %v", err)
 		}
 		items = append(items, item)
+		db.DebugLogger.Printf("DbHandler: getItems add : %v", item)
 	}
 
 	for index := range items {

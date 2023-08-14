@@ -29,9 +29,11 @@ func main() {
 	for update := range updates {
 
 		// Process -- логика обработки запросов
-		log.Printf("Update from %d [%s]", update.Message.Chat.ID, update.Message.Chat.UserName)
-		msg := qHandler.Process(&update)
-		bot.Send(msg)
+		if update.Message != nil {
+			log.Printf("Update from %d [%s]", update.Message.Chat.ID, update.Message.Chat.UserName)
+			msg := qHandler.Process(&update)
+			bot.Send(msg)
+		}
 	}
 
 }
