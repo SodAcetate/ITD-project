@@ -5,7 +5,7 @@ import (
 	"log"
 	cachehandler "main/app/cacheHandler"
 	dbhandler "main/app/dbLogic"
-	"main/shared/entry"
+	"main/shared/data"
 	"main/shared/message"
 	"strconv"
 	"strings"
@@ -78,7 +78,7 @@ func (core *Core) UpdateUserState(ID int64, state string) {
 // из dbHandler получает объекты entry и error
 // на выход передаёт объекты message и состояние (srtring)
 
-func userToString(user entry.EntryUser) string {
+func userToString(user data.EntryUser) string {
 	text := fmt.Sprintf("<i>%s @%s</i>", user.Name, user.Username)
 	if user.Contacts != "" {
 		text += fmt.Sprintf("\n<i>%s</i>", user.Contacts)
@@ -87,7 +87,7 @@ func userToString(user entry.EntryUser) string {
 }
 
 // Получить текстовое представление предмета
-func itemToString(item entry.EntryItem, userInfoNeeded bool) string {
+func itemToString(item data.EntryItem, userInfoNeeded bool) string {
 	text := fmt.Sprintf("<b>%s</b>\n", item.Name)
 	if item.Desc != "" {
 		text += fmt.Sprintf("%s\n", item.Desc)
@@ -98,7 +98,7 @@ func itemToString(item entry.EntryItem, userInfoNeeded bool) string {
 	return text
 }
 
-func catalogueToString(catalogue []entry.EntryItem, header string, userInfoNeeded bool) string {
+func catalogueToString(catalogue []data.EntryItem, header string, userInfoNeeded bool) string {
 	text := ""
 	if header != "" {
 		text = header + "\n"
@@ -110,18 +110,18 @@ func catalogueToString(catalogue []entry.EntryItem, header string, userInfoNeede
 }
 
 func (core *Core) AddUser(ID int64, name, username string) {
-	core.Db.AddUser(entry.EntryUser{ID: ID, State: "new", Name: name, Username: username})
+	core.Db.AddUser(data.EntryUser{ID: ID, State: "new", Name: name, Username: username})
 }
 
 func (core *Core) EditUser(ID int64, name, username string) {
-	core.Db.EditUser(entry.EntryUser{ID: ID, Name: name, Username: username})
+	core.Db.EditUser(data.EntryUser{ID: ID, Name: name, Username: username})
 }
 
 // Удаляет структуру из кеша
 // Возвращает состояние start
 func (core *Core) Cancel(ID int64) (message.Message, string) {
 	state := "start"
-	core.Cache.SetCurrentItem(ID, entry.EntryItem{})
+	core.Cache.SetCurrentItem(ID, data.EntryItem{})
 	msg := message.Message{Text: "Операция отменена", Buttons: core.MarkupMap[state]}
 	return msg, state
 }
@@ -146,17 +146,20 @@ func (core *Core) Echo(ID int64, state string, reply string) (message.Message, s
 func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 	state := "cat"
 	var msg message.Message
-	catalogue, _, isLastPage := core.Db.GetCatalogueFirstPage()
+	key := data.Key{}
+	filter := data.ItemFilter{}
+	core.Cache.SetFilter(ID, filter)
+	items, isLastPage, _ := core.Db.GetPage(key, true, filter)
 
-	if len(catalogue) == 0 {
+	if len(items) == 0 {
 		msg.Text = "Товаров нет! Можете добавить первый"
 		msg.Buttons = core.MarkupMap[state]
 		return msg, state
 	}
 
-	core.Cache.SetCatalogue(ID, catalogue)
+	core.Cache.SetCatalogue(ID, items)
 
-	msg.Text = catalogueToString(catalogue, "Каталог", true)
+	msg.Text = catalogueToString(items, "Каталог", true)
 	msg.Buttons = core.MarkupMap[state]
 
 	if isLastPage == false {
@@ -166,25 +169,26 @@ func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
 	return msg, state
 }
 
-func (core *Core) CatNextPage(ID int64) (message.Message, string) {
-	state := "cat"
+func (core *Core) NextPage(ID int64) (message.Message, string) {
+	state, _ := core.Cache.GetUserState(ID)
 	var msg message.Message
 
-	catalogue, ok := core.Cache.GetCatalogue(ID)
+	items, ok := core.Cache.GetCatalogue(ID)
 	if !ok {
 		return core.Echo(ID, "start", "")
 	}
-	key := []int64{catalogue[len(catalogue)-1].Updated, catalogue[len(catalogue)-1].ID}
+	key := data.Key{Updated: items[len(items)-1].Updated, ID: items[len(items)-1].ID}
 	log.Println(key)
+	filter, _ := core.Cache.GetFilter(ID)
 
-	catalogue, _, isLastPage := core.Db.GetCatalogueNextPage(key[0], key[1])
+	items, isLastPage, _ := core.Db.GetPage(key, true, filter)
 
-	if len(catalogue) == 0 {
+	if len(items) == 0 {
 		msg, state = core.Echo(ID, "start", "Это последняя страница!")
 		return msg, state
 	} else {
-		core.Cache.SetCatalogue(ID, catalogue)
-		msg.Text = catalogueToString(catalogue, "", true)
+		core.Cache.SetCatalogue(ID, items)
+		msg.Text = catalogueToString(items, "", true)
 		msg.Buttons = core.MarkupMap[state]
 		msg.Buttons = append(msg.Buttons, "Назад")
 		if isLastPage == false {
@@ -195,27 +199,28 @@ func (core *Core) CatNextPage(ID int64) (message.Message, string) {
 	}
 }
 
-func (core *Core) CatPrevPage(ID int64) (message.Message, string) {
-	state := "cat"
+func (core *Core) PrevPage(ID int64) (message.Message, string) {
+	state, _ := core.Cache.GetUserState(ID)
 	var msg message.Message
 
-	catalogue, ok := core.Cache.GetCatalogue(ID)
+	items, ok := core.Cache.GetCatalogue(ID)
 	if !ok {
 		return core.Echo(ID, "start", "")
 	}
 
-	key := []int64{catalogue[0].Updated, catalogue[0].ID}
+	key := data.Key{Updated: items[0].Updated, ID: items[0].ID}
 	log.Println(key)
+	filter, _ := core.Cache.GetFilter(ID)
 
-	catalogue, _, isFirstPage := core.Db.GetCataloguePrevPage(key[0], key[1])
+	items, isFirstPage, _ := core.Db.GetPage(key, false, filter)
 
-	if len(catalogue) == 0 {
+	if len(items) == 0 {
 		msg, state = core.Echo(ID, "start", "Это первая страница!")
 		return msg, state
 	} else {
-		core.Cache.SetCatalogue(ID, catalogue)
+		core.Cache.SetCatalogue(ID, items)
 
-		msg.Text = catalogueToString(catalogue, "Каталог", true)
+		msg.Text = catalogueToString(items, "Каталог", true)
 		msg.Buttons = core.MarkupMap[state]
 		if isFirstPage == false {
 			msg.Buttons = append(msg.Buttons, "Назад")
@@ -244,102 +249,30 @@ func (core *Core) SearchInit(ID int64) (message.Message, string) {
 // получает повары с подстрокой, пишет их в кеш и на экран
 // возвращает состояние start
 func (core *Core) Search(ID int64, input string) (message.Message, string) {
-	var msg message.Message
-	var text string
 	state := "search"
-	core.Cache.SetInput(ID, input)
+	var msg message.Message
+	key := data.Key{}
 
-	items, err, isLastPage := core.Db.GetSearchFirstPage(strings.Split(input, " "))
+	core.Cache.SetInput(ID, input)
+	filter := data.ItemFilter{Substrings: strings.Split(input, " ")}
+	core.Cache.SetFilter(ID, filter)
+	items, isLastPage, err := core.Db.GetPage(key, true, filter)
 
 	if err != nil {
 		return core.Echo(ID, "start", "Непредвиденная ошибка")
 	} else if len(items) == 0 {
-		text = "Увы, товаров не найдено"
-		state = "start"
-	} else {
-		core.Cache.SetCatalogue(ID, items)
-		text = catalogueToString(items, "Результаты поиска:", true)
+		msg, state = core.Echo(ID, "start", "Товаров не найдено")
+		return msg, state
 	}
 
-	msg.Text = text
+	core.Cache.SetCatalogue(ID, items)
+
+	msg.Text = catalogueToString(items, "Результаты поиска", true)
 	msg.Buttons = core.MarkupMap[state]
+
 	if isLastPage == false {
 		msg.Buttons = append(msg.Buttons, "Вперёд")
 	}
-
-	return msg, state
-}
-
-func (core *Core) SearchNextPage(ID int64) (message.Message, string) {
-	var msg message.Message
-	var text string
-	state := "search"
-	input, ok := core.Cache.GetInput(ID)
-	if !ok {
-		return core.Echo(ID, "start", "")
-	}
-
-	catalogue, ok := core.Cache.GetCatalogue(ID)
-	if !ok {
-		return core.Echo(ID, "start", "")
-	}
-
-	key := []int64{catalogue[len(catalogue)-1].Updated, catalogue[len(catalogue)-1].ID}
-	log.Println(key)
-
-	items, _, isLastPage := core.Db.GetSearchNextPage(key[0], key[1], strings.Split(input, " "))
-
-	if len(items) == 0 {
-		msg, state = core.Echo(ID, "start", "Это последняя страница!")
-		return msg, state
-	} else {
-		core.Cache.SetCatalogue(ID, items)
-		text = catalogueToString(items, "", true)
-	}
-
-	msg.Text = text
-	msg.Buttons = core.MarkupMap[state]
-	msg.Buttons = append(msg.Buttons, "Назад")
-	if isLastPage == false {
-		msg.Buttons = append(msg.Buttons, "Вперёд")
-	}
-
-	return msg, state
-}
-
-func (core *Core) SearchPrevPage(ID int64) (message.Message, string) {
-	var msg message.Message
-	var text string
-	state := "search"
-	input, ok := core.Cache.GetInput(ID)
-	if !ok {
-		return core.Echo(ID, "start", "")
-	}
-
-	catalogue, ok := core.Cache.GetCatalogue(ID)
-	if !ok {
-		return core.Echo(ID, "start", "")
-	}
-
-	key := []int64{catalogue[0].Updated, catalogue[0].ID}
-	log.Println(key)
-
-	items, _, isLastPage := core.Db.GetSearchPrevPage(key[0], key[1], strings.Split(input, " "))
-
-	if len(items) == 0 {
-		msg, state = core.Echo(ID, "start", "Это первая страница!")
-		return msg, state
-	} else {
-		core.Cache.SetCatalogue(ID, items)
-		text = catalogueToString(items, "", true)
-	}
-
-	msg.Text = text
-	msg.Buttons = core.MarkupMap[state]
-	if isLastPage == false {
-		msg.Buttons = append(msg.Buttons, "Назад")
-	}
-	msg.Buttons = append(msg.Buttons, "Вперёд")
 
 	return msg, state
 }
@@ -376,7 +309,7 @@ func (core *Core) AddItemInit(ID int64) (message.Message, string) {
 		state string
 	)
 
-	core.Cache.SetCurrentItem(ID, entry.EntryItem{UserInfo: core.Db.GetUserInfo(ID)})
+	core.Cache.SetCurrentItem(ID, data.EntryItem{UserInfo: core.Db.GetUserInfo(ID)})
 
 	msg, state = core.AskItemName(ID, "add")
 	return msg, state
@@ -419,7 +352,11 @@ func (core *Core) EditItemInit(ID int64, input string) (message.Message, string)
 	log.Printf("Длина каталога %d", len(catalogue))
 
 	if len(catalogue) == 0 {
-		catalogue, _ = core.Db.GetAll()
+		return core.Echo(ID, "start", "Нечего удалять")
+	}
+
+	if index < 1 || index > len(catalogue) {
+		return core.Echo(ID, "cat_my", "Так нельзя)")
 	}
 
 	entry := catalogue[index-1]
@@ -571,11 +508,15 @@ func (core *Core) DeleteItem(ID int64, input string) (message.Message, string) {
 
 	catalogue, ok := core.Cache.GetCatalogue(ID)
 	if !ok {
-		return core.Echo(ID, "start", "")
+		return core.Echo(ID, "start", "Что-то пошло не так")
 	}
 
 	if len(catalogue) == 0 {
-		catalogue, _ = core.Db.GetAll()
+		return core.Echo(ID, "start", "Нечего удалять")
+	}
+
+	if index < 1 || index > len(catalogue) {
+		return core.Echo(ID, "cat_my", "Так нельзя)")
 	}
 
 	entry := catalogue[index-1]

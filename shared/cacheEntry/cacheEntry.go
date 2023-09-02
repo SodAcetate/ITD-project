@@ -1,10 +1,11 @@
 package cacheentry
 
-import "main/shared/entry"
+import "main/shared/data"
 
 type CacheEntry struct {
 	Input       string
 	State       string
-	CurrentItem entry.EntryItem
-	Catalogue   []entry.EntryItem
+	CurrentItem data.EntryItem
+	Catalogue   []data.EntryItem
+	Filter      data.ItemFilter
 }

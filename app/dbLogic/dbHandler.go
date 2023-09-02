@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	entry "main/shared/entry"
+	"main/shared/data"
 	"os"
 	"strconv"
 	"time"
@@ -50,11 +50,11 @@ func (db *DbHandler) GetUserState(ID int64) (string, error) {
 	return state, err
 }
 
-func (db *DbHandler) GetUserInfo(ID int64) entry.EntryUser {
+func (db *DbHandler) GetUserInfo(ID int64) data.EntryUser {
 
 	db.DebugLogger.Printf("DbHandler: GetUserInfo <- %v", ID)
 
-	var user entry.EntryUser
+	var user data.EntryUser
 	err := db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT * FROM users WHERE id = %d", ID)).Scan(&user.ID, &user.State, &user.Name, &user.Username, &user.Contacts)
 
 	db.DebugLogger.Printf("DbHandler: GetUserState -> %v, %v", user, err)
@@ -73,7 +73,7 @@ func (db *DbHandler) UpdateUserState(ID int64, new_state string) error {
 	return err
 }
 
-func (db *DbHandler) AddItem(item entry.EntryItem) error {
+func (db *DbHandler) AddItem(item data.EntryItem) error {
 
 	db.DebugLogger.Printf("DbHandler: AddItem <- %v", item)
 
@@ -87,7 +87,7 @@ func (db *DbHandler) AddItem(item entry.EntryItem) error {
 	return err
 }
 
-func (db *DbHandler) AddUser(user entry.EntryUser) error {
+func (db *DbHandler) AddUser(user data.EntryUser) error {
 
 	db.DebugLogger.Printf("DbHandler: AddUser <- %v", user)
 
@@ -100,7 +100,7 @@ func (db *DbHandler) AddUser(user entry.EntryUser) error {
 	return err
 }
 
-func (db *DbHandler) EditItem(item entry.EntryItem) error {
+func (db *DbHandler) EditItem(item data.EntryItem) error {
 
 	db.DebugLogger.Printf("DbHandler: EditItem <- %v", item)
 
@@ -111,7 +111,7 @@ func (db *DbHandler) EditItem(item entry.EntryItem) error {
 	return err
 }
 
-func (db *DbHandler) EditUser(user entry.EntryUser) error {
+func (db *DbHandler) EditUser(user data.EntryUser) error {
 	db.DebugLogger.Printf("DbHandler: EditUser <- %v", user)
 
 	_, err := db.Conn.Exec(context.Background(), "Update users SET name=$1, username=$2, contacts=$3 WHERE id=$4", user.Name, user.Username, user.Contacts, user.ID)
@@ -120,7 +120,7 @@ func (db *DbHandler) EditUser(user entry.EntryUser) error {
 	return err
 }
 
-func (db *DbHandler) DeleteItem(item entry.EntryItem) error {
+func (db *DbHandler) DeleteItem(item data.EntryItem) error {
 	db.DebugLogger.Printf("DbHandler: DeleteItem <- %v", item)
 
 	_, err := db.Conn.Exec(context.Background(), "DELETE FROM items WHERE id=$1", item.ID)
@@ -132,7 +132,7 @@ func (db *DbHandler) DeleteItem(item entry.EntryItem) error {
 	return err
 }
 
-func (db *DbHandler) DeleteUser(user entry.EntryUser) error {
+func (db *DbHandler) DeleteUser(user data.EntryUser) error {
 	db.DebugLogger.Printf("DbHandler: DeleteUser <- %v", user)
 
 	_, err := db.Conn.Exec(context.Background(), "DELETE FROM users WHERE id=$1", user.ID)
@@ -141,97 +141,7 @@ func (db *DbHandler) DeleteUser(user entry.EntryUser) error {
 	return err
 }
 
-func (db *DbHandler) GetAll() ([]entry.EntryItem, error) {
-	db.DebugLogger.Printf("DbHandler: GetAll")
-
-	request := "SELECT * FROM items ORDER BY (updated, id) DESC"
-	items, err := db.getItems(request)
-
-	db.DebugLogger.Printf("DbHandler: GetAll -> %v, %v", items, err)
-	return items, err
-}
-
-func (db *DbHandler) GetCatalogueFirstPage() ([]entry.EntryItem, error, bool) {
-	db.DebugLogger.Printf("DbHandler: GetCatalogueFirstPage")
-
-	params := ""
-	items, err, isLastPage := db.firstPage(params)
-
-	db.DebugLogger.Printf("DbHandler: GetCatalogueFirstPage -> %v, %v, %v", items, err, isLastPage)
-	return items, err, isLastPage
-
-}
-
-func (db *DbHandler) GetCatalogueNextPage(key_upd, key_id int64) ([]entry.EntryItem, error, bool) {
-	db.DebugLogger.Printf("DbHandler: GetCatalogueNextPage <- %v, %v", key_upd, key_id)
-
-	params := ""
-	items, err, isLastPage := db.nextPage(key_upd, key_id, params)
-
-	db.DebugLogger.Printf("DbHandler: GetCatalogueFirstPage -> %v, %v, %v", items, err, isLastPage)
-	return items, err, isLastPage
-}
-
-func (db *DbHandler) GetCataloguePrevPage(key_upd, key_id int64) ([]entry.EntryItem, error, bool) {
-	db.DebugLogger.Printf("DbHandler: GetCataloguePrevPage <- %v, %v", key_upd, key_id)
-
-	params := ""
-	items, err, isFirstPage := db.prevPage(key_upd, key_id, params)
-
-	db.DebugLogger.Printf("DbHandler: GetCataloguePrevPage -> %v, %v, %v", items, err, isFirstPage)
-	return items, err, isFirstPage
-}
-
-func (db *DbHandler) GetSearchFirstPage(substrings []string) ([]entry.EntryItem, error, bool) {
-	db.DebugLogger.Printf("DbHandler: GetSearchFirstPage <- %v", substrings)
-	params := "("
-
-	for i, substring := range substrings {
-		if i > 0 {
-			params += " AND "
-		}
-		params += fmt.Sprintf("CONCAT(name, ' ', description) ILIKE '%%%s%%'", substring)
-	}
-
-	params += ")"
-
-	items, err, isLastPage := db.firstPage(params)
-
-	db.DebugLogger.Printf("DbHandler: GetSearchFirstPage -> %v, %v, %v", items, err, isLastPage)
-	return items, err, isLastPage
-}
-
-func (db *DbHandler) GetSearchNextPage(key_upd, key_id int64, substrings []string) ([]entry.EntryItem, error, bool) {
-	db.DebugLogger.Printf("DbHandler: GetSearchNextPage <- %v, %v, %v", key_upd, key_id, substrings)
-	var params string
-
-	for _, substring := range substrings {
-		params += " AND "
-		params += fmt.Sprintf("CONCAT(name, ' ', description) ILIKE '%%%s%%'", substring)
-	}
-
-	items, err, isLastPage := db.nextPage(key_upd, key_id, params)
-
-	db.DebugLogger.Printf("DbHandler: GetSearchNextPage -> %v, %v, %v", items, err, isLastPage)
-	return items, err, isLastPage
-}
-
-func (db *DbHandler) GetSearchPrevPage(key_upd, key_id int64, substrings []string) ([]entry.EntryItem, error, bool) {
-	db.DebugLogger.Printf("DbHandler: GetSearchPrevPage <- %v, %v, %v", key_upd, key_id, substrings)
-	var params string
-
-	for _, substring := range substrings {
-		params += " AND "
-		params += fmt.Sprintf("CONCAT(name, ' ', description) ILIKE '%%%s%%'", substring)
-	}
-
-	items, err, isFirstPage := db.prevPage(key_upd, key_id, params)
-
-	db.DebugLogger.Printf("DbHandler: GetSearchPrevPage -> %v, %v, %v", items, err, isFirstPage)
-	return items, err, isFirstPage
-}
-
-func (db *DbHandler) SearchByUser(ID int64) ([]entry.EntryItem, error) {
+func (db *DbHandler) SearchByUser(ID int64) ([]data.EntryItem, error) {
 	db.DebugLogger.Printf("DbHandler: SearchByUser <- %v", ID)
 
 	request := fmt.Sprintf("SELECT * FROM items WHERE user_id = %d ORDER BY (updated, id) DESC", ID)
@@ -241,110 +151,73 @@ func (db *DbHandler) SearchByUser(ID int64) ([]entry.EntryItem, error) {
 	return items, err
 }
 
-func (db *DbHandler) firstPage(params string) ([]entry.EntryItem, error, bool) {
+func (db *DbHandler) GetPage(key data.Key, fwd bool, filter data.ItemFilter) (items []data.EntryItem, isFinal bool, err error) {
+	var filterParams, pageParams string
+
+	// Итерируемся по странице вперёд/назад в зависимости от флага
+	if fwd && (key != data.Key{}) {
+		pageParams = fmt.Sprintf("(updated, id) < (%d, %d)", key.Updated, key.ID)
+	} else {
+		pageParams = fmt.Sprintf("(updated, id) > (%d, %d)", key.Updated, key.ID)
+	}
+	// добавляем условия на вхождения подстрок
+	if filter.Substrings != nil {
+		for _, substring := range filter.Substrings {
+			filterParams += fmt.Sprintf(" AND CONCAT(name, ' ', description) ILIKE '%%%s%%'", substring)
+		}
+	}
+	// условие на user_id
+	if filter.UserID != 0 {
+		filterParams += fmt.Sprintf(" AND user_id=%d", filter.UserID)
+	}
+	// условие на type
+	if filter.ItemType != 0 {
+		filterParams += fmt.Sprintf(" AND type=%d", filter.ItemType)
+	}
+
+	// создаём запрос
 	var request string
-	if params != "" {
-		request = fmt.Sprintf("SELECT * FROM items WHERE %s ORDER BY (updated, id) DESC FETCH FIRST %d ROWS ONLY", params, db.PageLength)
+	if fwd {
+		request = fmt.Sprintf("SELECT * FROM items WHERE %s %s ORDER BY (updated, id) DESC FETCH FIRST %d ROWS ONLY", pageParams, filterParams, db.PageLength)
 	} else {
-		request = fmt.Sprintf("SELECT * FROM items ORDER BY (updated, id) DESC FETCH FIRST %d ROWS ONLY", db.PageLength)
+		request = fmt.Sprintf("SELECT * FROM (SELECT * FROM items WHERE %s %s ORDER BY (updated, id) ASC FETCH NEXT %d ROWS ONLY) AS foo ORDER BY (updated, id) DESC", pageParams, filterParams, db.PageLength)
 	}
 
-	db.DebugLogger.Printf("DbHandler: firstPage : %v", request)
+	// получаем вхождения
+	items, err = db.getItems(request)
 
-	items, err := db.getItems(request)
-	if len(items) == 0 {
-		db.DebugLogger.Printf("DbHandler: firstPage : len[items] == 0 -> %v, %v, %v", items, err, true)
-		return items, err, true
-	}
-
-	var isLastPage bool
-
+	// считаем, есть ли ещё
 	var count int8
-
-	if params != "" {
-		params = "AND (" + params + ")"
+	var finalItem data.EntryItem
+	if fwd {
+		finalItem = items[len(items)-1]
+		err = db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) < (%d,%d) %s FETCH FIRST 1 ROWS ONLY",
+			finalItem.Updated,
+			finalItem.ID,
+			filterParams)).Scan(&count)
+	} else {
+		finalItem = items[0]
+		err = db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) > (%d,%d) %s FETCH FIRST 1 ROWS ONLY",
+			finalItem.Updated,
+			finalItem.ID,
+			filterParams)).Scan(&count)
 	}
-
-	err = db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) < (%d, %d) %s FETCH FIRST 1 ROWS ONLY",
-		items[len(items)-1].Updated,
-		items[len(items)-1].ID,
-		params)).Scan(&count)
 
 	if count == 0 {
-		isLastPage = true
+		isFinal = true
 	} else {
-		isLastPage = false
+		isFinal = false
 	}
 
-	db.DebugLogger.Printf("DbHandler: firstPage -> %v, %v, %v", items, err, isLastPage)
-	return items, err, isLastPage
+	return
 }
 
-func (db *DbHandler) nextPage(key_upd, key_id int64, params string) ([]entry.EntryItem, error, bool) {
-	db.DebugLogger.Printf("DbHandler: nextPage <- %v, %v", key_upd, key_id)
-
-	var isLastPage bool
-	request := fmt.Sprintf("SELECT * FROM items WHERE (updated, id) < (%d, %d) %s ORDER BY (updated, id) DESC FETCH FIRST %d ROWS ONLY", key_upd, key_id, params, db.PageLength)
-
-	db.DebugLogger.Printf("DbHandler: nextPage : %v", request)
-
-	items, err := db.getItems(request)
-	if len(items) == 0 {
-		db.DebugLogger.Printf("DbHandler: nextPage : len[items] == 0 -> %v, %v, %v", items, err, true)
-		return items, err, true
-	}
-
-	var count int8
-	err = db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) < (%d, %d) %s FETCH FIRST 1 ROWS ONLY",
-		items[len(items)-1].Updated,
-		items[len(items)-1].ID,
-		params)).Scan(&count)
-
-	if count == 0 {
-		isLastPage = true
-	} else {
-		isLastPage = false
-	}
-
-	db.DebugLogger.Printf("DbHandler: nextPage -> %v, %v, %v", items, err, isLastPage)
-	return items, err, isLastPage
-}
-
-func (db *DbHandler) prevPage(key_upd, key_id int64, params string) ([]entry.EntryItem, error, bool) {
-	db.DebugLogger.Printf("DbHandler: prevPage <- %v, %v", key_upd, key_id)
-
-	var isFirstPage bool
-	request := fmt.Sprintf("SELECT * FROM (SELECT * FROM items WHERE (updated, id) > (%d, %d) %s ORDER BY (updated, id) ASC FETCH NEXT %d ROWS ONLY) AS foo ORDER BY (updated, id) DESC", key_upd, key_id, params, db.PageLength)
-
-	db.DebugLogger.Printf("DbHandler: prevPage : %v", request)
-
-	items, err := db.getItems(request)
-	if len(items) == 0 {
-		db.DebugLogger.Printf("DbHandler: prevPage : len[items] == 0 -> %v, %v, %v", items, err, true)
-		return items, err, true
-	}
-
-	var count int8
-	err = db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT COUNT(*) FROM items WHERE (updated, id) > (%d, %d) %s FETCH FIRST 1 ROWS ONLY",
-		items[0].Updated,
-		items[0].ID,
-		params)).Scan(&count)
-
-	if count == 0 {
-		isFirstPage = true
-	} else {
-		isFirstPage = false
-	}
-
-	db.DebugLogger.Printf("DbHandler: nextPage -> %v, %v, %v", items, err, isFirstPage)
-	return items, err, isFirstPage
-}
-
-func (db *DbHandler) getItems(request string) ([]entry.EntryItem, error) {
+// Работает
+func (db *DbHandler) getItems(request string) ([]data.EntryItem, error) {
 	db.DebugLogger.Printf("DbHandler: getItems <- %v", request)
 
-	items := make([]entry.EntryItem, 0)
-	item := entry.EntryItem{}
+	items := make([]data.EntryItem, 0)
+	item := data.EntryItem{}
 
 	rows, _ := db.Conn.Query(context.Background(), request)
 	for rows.Next() {

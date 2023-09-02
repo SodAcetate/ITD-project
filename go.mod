@@ -1,6 +1,6 @@
 module main
 
-go 1.20
+go 1.21
 
 require (
 	github.com/Syfaro/telegram-bot-api v4.6.4+incompatible

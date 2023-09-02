@@ -1,4 +1,15 @@
-package entry
+package data
+
+type ItemFilter struct {
+	Substrings []string
+	UserID     int64
+	ItemType   int8
+}
+
+type Key struct {
+	ID      int64
+	Updated int64
+}
 
 type EntryItem struct {
 	ID       int64

@@ -97,9 +97,9 @@ func (qHandler *QueryHandler) catHandle(update *tgbotapi.Update) (message.Messag
 	case "Выйти":
 		msg, new_state = qHandler.Core.Start(update.Message.Chat.ID)
 	case "Вперёд":
-		msg, new_state = qHandler.Core.CatNextPage(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.NextPage(update.Message.Chat.ID)
 	case "Назад":
-		msg, new_state = qHandler.Core.CatPrevPage(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.PrevPage(update.Message.Chat.ID)
 	default:
 		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "cat", "Некорректная команда")
 	}
@@ -152,9 +152,9 @@ func (qHandler *QueryHandler) searchHandle(update *tgbotapi.Update) (message.Mes
 	case "Выйти":
 		msg, new_state = qHandler.Core.Start(update.Message.Chat.ID)
 	case "Вперёд":
-		msg, new_state = qHandler.Core.SearchNextPage(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.NextPage(update.Message.Chat.ID)
 	case "Назад":
-		msg, new_state = qHandler.Core.SearchPrevPage(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.PrevPage(update.Message.Chat.ID)
 	default:
 		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "search", "Некорректная команда")
 	}
