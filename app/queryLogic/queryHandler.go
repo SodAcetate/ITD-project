@@ -21,6 +21,7 @@ func (qHandler *QueryHandler) Init() {
 		"start":              qHandler.startHandle,
 		"ask_item_name":      qHandler.askItemNameHandle,
 		"ask_item_desc":      qHandler.askItemDescHandle,
+		"ask_item_type":      qHandler.askItemTypeHandle,
 		"ask_contact":        qHandler.AskContactHandle,
 		"edit_item_select":   qHandler.editItemSelectHandle,
 		"edit_item":          qHandler.editItemHandle,
@@ -171,9 +172,11 @@ func (qHandler *QueryHandler) editItemHandle(update *tgbotapi.Update) (message.M
 
 	switch update.Message.Text {
 	case "Изменить имя":
-		msg, new_state = qHandler.Core.AskItemName(update.Message.Chat.ID, "add")
+		msg, new_state = qHandler.Core.AskItemName(update.Message.Chat.ID)
 	case "Изменить описание":
-		msg, new_state = qHandler.Core.AskItemDescription(update.Message.Chat.ID, "add")
+		msg, new_state = qHandler.Core.AskItemDescription(update.Message.Chat.ID)
+	case "Изменить тип":
+		msg, new_state = qHandler.Core.AskItemType(update.Message.Chat.ID)
 	case "Отмена":
 		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
 	case "Готово":
@@ -208,6 +211,24 @@ func (qHandler *QueryHandler) askItemDescHandle(update *tgbotapi.Update) (messag
 		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
 	} else {
 		msg, new_state = qHandler.Core.SetItemDescription(update.Message.Chat.ID, update.Message.Text)
+	}
+
+	return msg, new_state
+}
+
+func (qHandler *QueryHandler) askItemTypeHandle(update *tgbotapi.Update) (message.Message, string) {
+	var new_state string
+	var msg message.Message
+
+	switch update.Message.Text {
+	case "Продажа":
+		msg, new_state = qHandler.Core.SetItemType(update.Message.Chat.ID, 1)
+	case "Пользование/услуга":
+		msg, new_state = qHandler.Core.SetItemType(update.Message.Chat.ID, 2)
+	case "Объявление":
+		msg, new_state = qHandler.Core.SetItemType(update.Message.Chat.ID, 3)
+	default:
+		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "ask_item_type", "Некорректный ввод")
 	}
 
 	return msg, new_state

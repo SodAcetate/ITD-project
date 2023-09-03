@@ -27,11 +27,12 @@ func (core *Core) Init() {
 		"start":              {"Каталог", "Поиск", "Моё"},
 		"cat":                {"Выйти", "Поиск"},
 		"cat_my":             {"Выйти", "Добавить", "Изменить", "Удалить", "Указать контакты"},
-		"edit_item":          {"Изменить имя", "Изменить описание", "Отмена", "Готово"},
+		"edit_item":          {"Изменить имя", "Изменить описание", "Изменить тип", "Отмена", "Готово"},
 		"edit_filter":        {"Выйти", "Изменить запрос", "Всё", "Продажа", "Пользование", "Объявления"},
 		"search":             {"Выйти"},
 		"ask_item_name":      {"Отмена"},
 		"ask_item_desc":      {"Отмена"},
+		"ask_item_type":      {"Продажа", "Пользование/услуга", "Объявление"},
 		"ask_search":         {"Отмена"},
 		"ask_contact":        {"Отмена"},
 		"delete_item_select": {"Отмена"},
@@ -90,6 +91,16 @@ func userToString(user data.EntryUser) string {
 // Получить текстовое представление предмета
 func itemToString(item data.EntryItem, userInfoNeeded bool) string {
 	text := fmt.Sprintf("<b>%s</b>\n", item.Name)
+	switch item.Type {
+	case 0:
+		text += "<i>Тип не указан</i>\n"
+	case 1:
+		text += "<i>Продажа</i>\n"
+	case 2:
+		text += "<i>Пользование или услуга</i>\n"
+	case 3:
+		text += "<i>Объявление</i>\n"
+	}
 	if item.Desc != "" {
 		text += fmt.Sprintf("%s\n", item.Desc)
 	}
@@ -366,7 +377,7 @@ func (core *Core) AddItemInit(ID int64) (message.Message, string) {
 
 	core.Cache.SetCurrentItem(ID, data.EntryItem{UserInfo: core.Db.GetUserInfo(ID)})
 
-	msg, state = core.AskItemName(ID, "add")
+	msg, state = core.AskItemName(ID)
 	return msg, state
 }
 
@@ -425,7 +436,7 @@ func (core *Core) EditItemInit(ID int64, input string) (message.Message, string)
 }
 
 // Запрашивает у юзера название предмета
-func (core *Core) AskItemName(ID int64, mode string) (message.Message, string) {
+func (core *Core) AskItemName(ID int64) (message.Message, string) {
 	var (
 		state string
 		msg   message.Message
@@ -440,12 +451,25 @@ func (core *Core) AskItemName(ID int64, mode string) (message.Message, string) {
 
 // Запрашивает у юзера описание
 // Возвращает состояние add_item_desc
-func (core *Core) AskItemDescription(ID int64, mode string) (message.Message, string) {
+func (core *Core) AskItemDescription(ID int64) (message.Message, string) {
 	var state string
 	var msg message.Message
 
 	state = "ask_item_desc"
 	msg.Text = "Введите описание товара: "
+	msg.Buttons = core.MarkupMap[state]
+
+	return msg, state
+}
+
+// Запрашивает у юзера описание
+// Возвращает состояние add_item_desc
+func (core *Core) AskItemType(ID int64) (message.Message, string) {
+	var state string
+	var msg message.Message
+
+	state = "ask_item_type"
+	msg.Text = "Укажите категорию товара: "
 	msg.Buttons = core.MarkupMap[state]
 
 	return msg, state
@@ -474,7 +498,7 @@ func (core *Core) SetItemName(ID int64, input string) (message.Message, string) 
 
 	state = "edit_item"
 
-	msg.Text = "Имя успешно добавлено"
+	msg.Text = "Имя успешно добавлено\n\n" + itemToString(entry, true)
 	msg.Buttons = core.MarkupMap[state]
 
 	return msg, state
@@ -504,7 +528,29 @@ func (core *Core) SetItemDescription(ID int64, input string) (message.Message, s
 
 	state = "edit_item"
 
-	msg.Text = "Описание успешно добавлено"
+	msg.Text = "Описание успешно добавлено\n\n" + itemToString(entry, true)
+	msg.Buttons = core.MarkupMap[state]
+
+	return msg, state
+}
+
+func (core *Core) SetItemType(ID int64, item_type int8) (message.Message, string) {
+	var (
+		msg   message.Message
+		state string
+	)
+
+	entry, ok := core.Cache.GetCurrentItem(ID)
+	if !ok {
+		return core.Echo(ID, "start", "")
+	}
+
+	entry.Type = item_type
+	core.Cache.SetCurrentItem(ID, entry)
+
+	state = "edit_item"
+
+	msg.Text = "Тип успешно обновлён\n\n" + itemToString(entry, true)
 	msg.Buttons = core.MarkupMap[state]
 
 	return msg, state
