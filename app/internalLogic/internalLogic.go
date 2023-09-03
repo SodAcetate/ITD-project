@@ -28,6 +28,7 @@ func (core *Core) Init() {
 		"cat":                {"Выйти", "Поиск"},
 		"cat_my":             {"Выйти", "Добавить", "Изменить", "Удалить", "Указать контакты"},
 		"edit_item":          {"Изменить имя", "Изменить описание", "Отмена", "Готово"},
+		"edit_filter":        {"Выйти", "Изменить запрос", "Всё", "Продажа", "Пользование", "Объявления"},
 		"search":             {"Выйти"},
 		"ask_item_name":      {"Отмена"},
 		"ask_item_desc":      {"Отмена"},
@@ -109,6 +110,27 @@ func catalogueToString(catalogue []data.EntryItem, header string, userInfoNeeded
 	return text
 }
 
+func filterToString(filter data.ItemFilter) (text string) {
+	if filter.Substrings == nil && filter.ItemType == 0 && filter.UserID == 0 {
+		text = "Сейчас отображаются все предметы."
+	} else {
+		if filter.Substrings != nil {
+			text += fmt.Sprintf("\n<b>Запрос:</b> %s", strings.Join(filter.Substrings, " "))
+		}
+		switch filter.ItemType {
+		case 0:
+			text += "\nВсе типы предложений"
+		case 1:
+			text += "\nТолько продажа"
+		case 2:
+			text += "\nТолько услуги и пользование"
+		case 3:
+			text += "\nТолько объявления"
+		}
+	}
+	return
+}
+
 func (core *Core) AddUser(ID int64, name, username string) {
 	core.Db.AddUser(data.EntryUser{ID: ID, State: "new", Name: name, Username: username})
 }
@@ -143,12 +165,19 @@ func (core *Core) Echo(ID int64, state string, reply string) (message.Message, s
 
 // Получить из базы список всех предметов
 // Вернуть сообщение с инфой о всех предметах [id] name - name @contact
-func (core *Core) GetCatalogue(ID int64) (message.Message, string) {
+func (core *Core) GetCatalogue(ID int64, noFilter bool) (message.Message, string) {
 	state := "cat"
 	var msg message.Message
+	var filter data.ItemFilter
 	key := data.Key{}
-	filter := data.ItemFilter{}
-	core.Cache.SetFilter(ID, filter)
+
+	if noFilter {
+		filter = data.ItemFilter{}
+		core.Cache.SetFilter(ID, filter)
+	} else {
+		filter, _ = core.Cache.GetFilter(ID)
+	}
+
 	items, isLastPage, _ := core.Db.GetPage(key, true, filter)
 
 	if len(items) == 0 {
@@ -246,35 +275,61 @@ func (core *Core) SearchInit(ID int64) (message.Message, string) {
 	return msg, state
 }
 
+// поиск по вхождению в название
+// запрашивает у юзера подстроку
+func (core *Core) EditFilterInit(ID int64) (message.Message, string) {
+	var (
+		state string
+		msg   message.Message
+	)
+
+	state = "edit_filter"
+	filter, _ := core.Cache.GetFilter(ID)
+	msg.Text = filterToString(filter)
+	msg.Buttons = core.MarkupMap[state]
+
+	return msg, state
+}
+
+func (core *Core) SetType(ID int64, item_type int8) (message.Message, string) {
+	filter, _ := core.Cache.GetFilter(ID)
+	filter.ItemType = item_type
+	core.Cache.SetFilter(ID, filter)
+
+	return core.GetCatalogue(ID, false)
+}
+
 // получает повары с подстрокой, пишет их в кеш и на экран
 // возвращает состояние start
 func (core *Core) Search(ID int64, input string) (message.Message, string) {
-	state := "search"
-	var msg message.Message
-	key := data.Key{}
+	//state := "edit_filter"
+	//var msg message.Message
+	//key := data.Key{}
 
 	core.Cache.SetInput(ID, input)
 	filter := data.ItemFilter{Substrings: strings.Split(input, " ")}
 	core.Cache.SetFilter(ID, filter)
-	items, isLastPage, err := core.Db.GetPage(key, true, filter)
+	/*
+		items, isLastPage, err := core.Db.GetPage(key, true, filter)
 
-	if err != nil {
-		return core.Echo(ID, "start", "Непредвиденная ошибка")
-	} else if len(items) == 0 {
-		msg, state = core.Echo(ID, "start", "Товаров не найдено")
-		return msg, state
-	}
+		if err != nil {
+			return core.Echo(ID, "start", "Непредвиденная ошибка")
+		} else if len(items) == 0 {
+			msg, state = core.Echo(ID, "start", "Товаров не найдено")
+			return msg, state
+		}
 
-	core.Cache.SetCatalogue(ID, items)
+		core.Cache.SetCatalogue(ID, items)
 
-	msg.Text = catalogueToString(items, "Результаты поиска", true)
-	msg.Buttons = core.MarkupMap[state]
+		msg.Text = catalogueToString(items, "Результаты поиска", true)
+		msg.Buttons = core.MarkupMap[state]
 
-	if isLastPage == false {
-		msg.Buttons = append(msg.Buttons, "Вперёд")
-	}
+		if isLastPage == false {
+			msg.Buttons = append(msg.Buttons, "Вперёд")
+		}
+	*/
 
-	return msg, state
+	return core.EditFilterInit(ID)
 }
 
 func (core *Core) GetUsersItems(ID int64) (message.Message, string) {

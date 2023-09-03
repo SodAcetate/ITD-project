@@ -28,7 +28,8 @@ func (qHandler *QueryHandler) Init() {
 		"cat":                qHandler.catHandle,
 		"ask_search":         qHandler.askSearchHandle,
 		"cat_my":             qHandler.CatMyHandle,
-		"search":             qHandler.searchHandle,
+		"search":             qHandler.catHandle,
+		"edit_filter":        qHandler.editFilterHandle,
 	}
 }
 
@@ -74,7 +75,7 @@ func (qHandler *QueryHandler) startHandle(update *tgbotapi.Update) (message.Mess
 
 	switch update.Message.Text {
 	case "Каталог":
-		msg, new_state = qHandler.Core.GetCatalogue(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.GetCatalogue(update.Message.Chat.ID, true)
 	case "Моё":
 		msg, new_state = qHandler.Core.GetUsersItems(update.Message.Chat.ID)
 	case "Поиск":
@@ -93,7 +94,7 @@ func (qHandler *QueryHandler) catHandle(update *tgbotapi.Update) (message.Messag
 
 	switch update.Message.Text {
 	case "Поиск":
-		msg, new_state = qHandler.Core.SearchInit(update.Message.Chat.ID)
+		msg, new_state = qHandler.Core.EditFilterInit(update.Message.Chat.ID)
 	case "Выйти":
 		msg, new_state = qHandler.Core.Start(update.Message.Chat.ID)
 	case "Вперёд":
@@ -144,6 +145,7 @@ func (qHandler *QueryHandler) askSearchHandle(update *tgbotapi.Update) (message.
 	return msg, new_state
 }
 
+// redundant
 func (qHandler *QueryHandler) searchHandle(update *tgbotapi.Update) (message.Message, string) {
 	var msg message.Message
 	var new_state string
@@ -249,6 +251,31 @@ func (qHandler *QueryHandler) deleteItemSelectHandle(update *tgbotapi.Update) (m
 		msg, new_state = qHandler.Core.Cancel(update.Message.Chat.ID)
 	} else {
 		msg, new_state = qHandler.Core.DeleteItem(update.Message.Chat.ID, update.Message.Text)
+	}
+
+	return msg, new_state
+}
+
+// Фильтр и поиск
+func (qHandler *QueryHandler) editFilterHandle(update *tgbotapi.Update) (message.Message, string) {
+	var new_state string
+	var msg message.Message
+
+	switch update.Message.Text {
+	case "Изменить запрос":
+		msg, new_state = qHandler.Core.SearchInit(update.Message.Chat.ID)
+	case "Всё":
+		msg, new_state = qHandler.Core.SetType(update.Message.Chat.ID, 0)
+	case "Продажа":
+		msg, new_state = qHandler.Core.SetType(update.Message.Chat.ID, 1)
+	case "Пользование":
+		msg, new_state = qHandler.Core.SetType(update.Message.Chat.ID, 2)
+	case "Объявления":
+		msg, new_state = qHandler.Core.SetType(update.Message.Chat.ID, 3)
+	case "Выйти":
+		msg, new_state = qHandler.Core.GetCatalogue(update.Message.Chat.ID, false)
+	default:
+		msg, new_state = qHandler.Core.Echo(update.Message.Chat.ID, "edit_filter", "Некорректная команда")
 	}
 
 	return msg, new_state

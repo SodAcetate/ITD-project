@@ -185,7 +185,9 @@ func (db *DbHandler) GetPage(key data.Key, fwd bool, filter data.ItemFilter) (it
 
 	// получаем вхождения
 	items, err = db.getItems(request)
-
+	if len(items) == 0 {
+		return items, true, nil
+	}
 	// считаем, есть ли ещё
 	var count int8
 	var finalItem data.EntryItem
